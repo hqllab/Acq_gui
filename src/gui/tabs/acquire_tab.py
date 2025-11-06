@@ -42,13 +42,19 @@ class MatplotlibCanvas(FigureCanvas):
         cal_sel=(350, 400)
         rate=680/500
         log_en = False
-        
-        pos = data["pos0h"][:, 0].astype(np.float64) * pos_step
-        
-        (x, y, img) = _show(img, pos, rate, log_en)
-        
+        caxis=(0, 0)
         
         histData = np.transpose(data["data"], (2, 1, 0))
+
+        # 扫描位置
+        # if pos_en:
+        #     pos = data["pos0h"][:, 0].astype(np.float64) * pos_step
+        # else:
+        #     pos = np.arange(histData.shape[2]) * pos_step
+        
+        pos = data["pos0h"][:, 0].astype(np.float64) * pos_step
+
+        # 校正
         pos_sel = np.where((cal_sel[0] <= pos) & (pos < cal_sel[1]))[0]
         cal_den = histData[:, :, pos_sel].sum(axis=2)
         cal_num = cal_den.mean(axis=1)[:, None]
@@ -56,6 +62,22 @@ class MatplotlibCanvas(FigureCanvas):
         cal_den = np.where(cal_den == 0, cal_num, cal_den)
         cal = (cal_num / cal_den)[:, :, None]
         img = (histData.astype(np.float64) * cal).sum(axis=0).T
+
+        (x, y, img) = _show(img, pos, rate, log_en)
+
+        
+        self.ax1.set_title("Pos")
+        self.ax1.plot(pos)
+        
+        mesh = self.pcolormesh(x, y, img, shading='auto')
+        mesh.set_cmap('gray')
+        mesh.set_antialiased(False)
+        mesh.set_edgecolor('none')
+        self.ax2.set_aspect('equal')
+        self.ax2.set_xlabel('Width (mm)')
+        self.ax2.set_ylabel('Position (mm)')
+        self.fig.colorbar(mesh, ax=self.ax2, label='Counts')
+        self.ax2.clim(caxis[0], caxis[1])
 
 
         # 图 3：Sum over Y-axis
