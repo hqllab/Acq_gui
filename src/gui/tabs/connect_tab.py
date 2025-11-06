@@ -121,31 +121,20 @@ class ConnectTab(QWidget):
         self.log_box.append(f"[{'INFO' if success else 'ERROR'}] {msg}")
 
     # ---------------------------------------------------------
-    # def get_status(self):
-    #     self.log_box.append("[INFO] 正在读取状态...")
-    #     self.controller.get_status(self._on_status_result)
-
-    # def _on_status_result(self, success, result):
-    #     if success:
-    #         text = "; ".join([f"{k}: {v}" for k, v in result.items()])
-    #         self.status_label.setText(f"当前状态：{text}")
-    #         self.log_box.append("[DONE] 状态更新完成。")
-    #     else:
-    #         self.log_box.append(f"[ERROR] {result}")
-
     def get_status(self):
-        self.log_box.append("[INFO] 正在读取状态...")  # 日志框中输出正在读取状态
-        self.controller.get_status(self._on_status_result)  # 调用获取状态的方法
+        self.log_box.append("[INFO] 正在读取状态...")
+        self.controller.get_status(self._on_status_result)
 
     def _on_status_result(self, success, result):
+        """状态结果回调"""
         if success:
-            # 构建状态文本并更新状态标签
-            text = "; ".join([f"{k}: {v}" for k, v in result.items()])
-            self.status_label.setText(f"当前状态：{text}")
-            self.log_box.append("[DONE] 状态更新完成。")  # 日志框中输出状态更新完成
-            self.log_box.append(f"[INFO] 状态信息：{text}")  # 这里输出获取的状态信息
+            # 在日志框中逐行输出状态
+            self.log_box.append("[DONE] 状态更新完成。")
+            self.log_box.append("[INFO] 状态信息：")
+            for k, v in result.items():
+                self.log_box.append(f"  {k}: {v}")
         else:
-            self.log_box.append(f"[ERROR] {result}")  # 如果失败，输出错误信息
+            self.log_box.append(f"[ERROR] 获取状态失败：{result}")
 
     # ---------------------------------------------------------
     def apply_all_params(self):
