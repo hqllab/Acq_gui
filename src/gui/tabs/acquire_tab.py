@@ -204,17 +204,19 @@ class AcquireTab(QWidget):
 
         # --- ✅ 在采集前弹窗检查 ---
         if os.path.exists(file_path):
-            res = QMessageBox.question(
-                self,
-                "文件已存在",
-                f"文件已存在：\n{file_path}\n\n是否覆盖？",
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
-            )
-            if res == QMessageBox.No or res == QMessageBox.Cancel:
-                self.log_box.append("[INFO] 用户取消采集。")
-                return  # ✅ 用户拒绝覆盖，直接退出
-            else:
-                self.log_box.append(f"[WARN] 用户选择覆盖已有文件：{file_name}")
+            self.log_box.append(f"[WARN] 文件：{file_name} 已存在, 采集终止!")
+            return
+            # res = QMessageBox.question(
+            #     self,
+            #     "文件已存在",
+            #     f"文件已存在：\n{file_path}\n\n是否覆盖？",
+            #     QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            # )
+            # if res == QMessageBox.No or res == QMessageBox.Cancel:
+            #     self.log_box.append("[INFO] 用户取消采集。")
+            #     return  # ✅ 用户拒绝覆盖，直接退出
+            # else:
+            #     self.log_box.append(f"[WARN] 用户选择覆盖已有文件：{file_name}")
 
         # --- 启动采集 ---
         self.log_box.append(f"[INFO] 开始采集：{file_name}")
