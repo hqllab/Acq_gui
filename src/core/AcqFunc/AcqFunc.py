@@ -84,7 +84,7 @@ def _pixCalibration(tdata, calFile: str):
     return cal_cnt
 
 def _save(name, data):
-    real_name = f"{name}.mat"
+    real_name = f"{name}"
     if os.path.exists(real_name):
         y = input("文件存在是否覆盖")
         if y == 'y' or y == 'Y':
