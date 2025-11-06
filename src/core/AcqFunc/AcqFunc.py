@@ -1,5 +1,8 @@
 import sys
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # 使用 agg 后端，避免启动 GUI
+
 import matplotlib.pyplot as plt
 from hdf5storage import loadmat, savemat
 import subprocess

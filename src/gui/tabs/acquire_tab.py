@@ -197,7 +197,7 @@ class AcquireTab(QWidget):
         """采集状态更新"""
         self.log_box.append(f"{level} {message}")
 
-        # 采集完成后更新嵌入式图像
-        if "[DONE]" in level or level == "[DONE]":
-            if hasattr(self.acq_ctrl, "last_data"):
-                self.canvas.update_plots(self.acq_ctrl.last_data)
+        # # 采集完成后更新嵌入式图像
+        # if "[DONE]" in level or level == "[DONE]":
+        #     if hasattr(self.acq_ctrl, "last_data"):
+        #         self.canvas.update_plots(self.acq_ctrl.last_data)
