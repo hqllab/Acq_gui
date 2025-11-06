@@ -52,7 +52,7 @@ class AcquisitionController:
                     callback("[RUNNING]", f"开始采集: WinRange({win_id}, {win_low}, {win_high})")
 
                 # 执行采集
-                data = histAcqNoMove(det, cnt=None, time=duration, interval=int(2 * interval))
+                data = histAcqNoMove(det, cnt=None, time=duration, interval=int(interval))
                 self.last_data = data
 
                 # 保存结果

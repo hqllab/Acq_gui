@@ -16,11 +16,18 @@ class DetInterface:
     # -------------------- 状态信息 --------------------
     def get_status(self):
         """组合温度、电源、风扇状态"""
-        d = {}
-        d.update(self.det.statusTemperature())
-        d.update(self.det.statusPower())
-        d.update(self.det.statusFanSpeed())
-        return d
+        # d = {}
+        # d.update(self.det.statusTemperature())
+        # d.update(self.det.statusPower())
+        # d.update(self.det.statusFanSpeed())
+        
+        return {
+            "温度": self.det.statusTemperature(),
+            "位置": self.det.statusPosition(0.0375),
+            "电源": self.det.statusPower(),
+            "开关": self.det.statusPowerSwitch(),
+            "风扇": self.det.statusFanSpeed(),
+        }
 
     # -------------------- 参数设置 --------------------
     def set_position_config(self, pos_cfgs):

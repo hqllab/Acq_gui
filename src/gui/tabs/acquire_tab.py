@@ -162,6 +162,7 @@ class AcquireTab(QWidget):
             self.log_box.append("[ERROR] 当前未连接探测器，请先在“连接”界面建立连接。")
             return
         
+        # --- 采集参数 ---
         v, a = self.voltage.value(), self.current.value()
         f1, f2 = self.f1.value(), self.f2.value()
         s = self.speed.value()
@@ -171,21 +172,25 @@ class AcquireTab(QWidget):
         save_dir = self.dir_edit.text().strip()
         os.makedirs(save_dir, exist_ok=True)
 
+        # --- 文件名 ---
         file_name = f"{name}_{s}mmps_{f1}-{f2}_{v}kV_{a}mA_win{win[0]}_{win[1]}-{win[2]}_{dur}s_int{inter}.mat"
         file_path = os.path.join(save_dir, file_name)
 
-        # 检查是否存在
+        # --- ✅ 在采集前弹窗检查 ---
         if os.path.exists(file_path):
-            res = QMessageBox.warning(
-                self, "文件已存在", f"文件已存在：\n{file_path}\n是否覆盖？",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            res = QMessageBox.question(
+                self,
+                "文件已存在",
+                f"文件已存在：\n{file_path}\n\n是否覆盖？",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             )
-            if res == QMessageBox.No:
-                i = 1
-                while os.path.exists(file_path):
-                    file_path = os.path.join(save_dir, f"{name}_{i}.mat")
-                    i += 1
+            if res == QMessageBox.No or res == QMessageBox.Cancel:
+                self.log_box.append("[INFO] 用户取消采集。")
+                return  # ✅ 用户拒绝覆盖，直接退出
+            else:
+                self.log_box.append(f"[WARN] 用户选择覆盖已有文件：{file_name}")
 
+        # --- 启动采集 ---
         self.log_box.append(f"[INFO] 开始采集：{file_name}")
 
         self.acq_ctrl.acquire(
