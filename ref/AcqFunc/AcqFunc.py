@@ -103,10 +103,10 @@ def saveHist(data, name, calFile: str | None = ""):
             "data": np.transpose(data["data"], (2, 1, 0))
         }
     }
-    plt.figure()
-    plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
-    plt.colorbar()
-    plt.show()
+    # plt.figure()
+    # plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
+    # plt.colorbar()
+    # plt.show()
     _save(name, d)
     if calFile is not None and calFile != "":
         d["d"]["data"] = _pixCalibration(d["d"]["data"], calFile)

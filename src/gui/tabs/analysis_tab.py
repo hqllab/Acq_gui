@@ -5,8 +5,8 @@ from PySide6.QtWidgets import (
 )
 from hdf5storage import loadmat
 import numpy as np
-import matplotlib
-matplotlib.use('TkAgg')  # 使用 agg 后端，避免启动 GUI
+# import matplotlib
+# matplotlib.use('TkAgg')  # 使用 agg 后端，避免启动 GUI
 
 import matplotlib.pyplot as plt
 from core.AcqFunc.AcqFunc import showHist

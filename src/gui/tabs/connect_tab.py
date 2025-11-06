@@ -126,13 +126,14 @@ class ConnectTab(QWidget):
         self.controller.get_status(self._on_status_result)
 
     def _on_status_result(self, success, result):
+        import json
         """状态结果回调"""
         if success:
             # 在日志框中逐行输出状态
             self.log_box.append("[DONE] 状态更新完成。")
             self.log_box.append("[INFO] 状态信息：")
             for k, v in result.items():
-                self.log_box.append(f"  {k}: {v}")
+                self.log_box.append(f"  {k}: {json.dumps(v, indent=2, ensure_ascii=False)}")
         else:
             self.log_box.append(f"[ERROR] 获取状态失败：{result}")
 

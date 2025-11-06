@@ -13,14 +13,18 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from core.acquire_controller import AcquisitionController
+from core.AcqFunc.AcqFunc import _show
 
 
 # ===================== 内嵌图像画布类 =====================
 class MatplotlibCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
-        self.ax1 = self.fig.add_subplot(211)
-        self.ax2 = self.fig.add_subplot(212)
+        self.ax1 = self.fig.add_subplot(221)
+        self.ax2 = self.fig.add_subplot(222)
+        self.ax3 = self.fig.add_subplot(223)
+        self.ax4 = self.fig.add_subplot(224)
+        
         super().__init__(self.fig)
         self.setParent(parent)
         self.fig.tight_layout(pad=2.0)
@@ -31,18 +35,40 @@ class MatplotlibCanvas(FigureCanvas):
             return
         self.ax1.clear()
         self.ax2.clear()
+        self.ax3.clear()
+        self.ax4.clear()
 
-        # 图 1：Sum over Y-axis
-        self.ax1.set_title("Sum over Y-axis")
-        self.ax1.plot(data["data"].sum(axis=0).T)
-        self.ax1.set_xlabel("Channel")
-        self.ax1.set_ylabel("Counts")
+        pos_step = 0.0375
+        cal_sel=(350, 400)
+        rate=680/500
+        log_en = False
+        
+        pos = data["pos0h"][:, 0].astype(np.float64) * pos_step
+        
+        (x, y, img) = _show(img, pos, rate, log_en)
+        
+        
+        histData = np.transpose(data["data"], (2, 1, 0))
+        pos_sel = np.where((cal_sel[0] <= pos) & (pos < cal_sel[1]))[0]
+        cal_den = histData[:, :, pos_sel].sum(axis=2)
+        cal_num = cal_den.mean(axis=1)[:, None]
+        cal_num = np.where(cal_num == 0, 1, cal_num)
+        cal_den = np.where(cal_den == 0, cal_num, cal_den)
+        cal = (cal_num / cal_den)[:, :, None]
+        img = (histData.astype(np.float64) * cal).sum(axis=0).T
 
-        # 图 2：Total sum
-        self.ax2.set_title("Total sum")
-        self.ax2.plot(data["data"].sum(axis=0).sum(axis=1).T)
-        self.ax2.set_xlabel("Index")
-        self.ax2.set_ylabel("Counts")
+
+        # 图 3：Sum over Y-axis
+        self.ax3.set_title("Sum over Y-axis")
+        self.ax3.plot(data["data"].sum(axis=0).T)
+        self.ax3.set_xlabel("Channel")
+        self.ax3.set_ylabel("Counts")
+
+        # 图 4：Total sum
+        self.ax4.set_title("Total sum")
+        self.ax4.plot(data["data"].sum(axis=0).sum(axis=1).T)
+        self.ax4.set_xlabel("Index")
+        self.ax4.set_ylabel("Counts")
 
         self.draw()
 
@@ -202,7 +228,7 @@ class AcquireTab(QWidget):
         """采集状态更新"""
         self.log_box.append(f"{level} {message}")
 
-        # # 采集完成后更新嵌入式图像
-        # if "[DONE]" in level or level == "[DONE]":
-        #     if hasattr(self.acq_ctrl, "last_data"):
-        #         self.canvas.update_plots(self.acq_ctrl.last_data)
+        # 采集完成后更新嵌入式图像
+        if "[DONE]" in level or level == "[DONE]":
+            if hasattr(self.acq_ctrl, "last_data"):
+                self.canvas.update_plots(self.acq_ctrl.last_data)
