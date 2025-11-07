@@ -1,100 +1,18 @@
 # gui/tabs/acquire_tab.py
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel,
-    QSpinBox, QLineEdit, QPushButton, QTextEdit,
-    QFileDialog, QHBoxLayout, QMessageBox
+    QSpinBox, QDoubleSpinBox, QLineEdit, QPushButton,
+    QTextEdit, QFileDialog, QHBoxLayout, QGroupBox, QCheckBox, QMessageBox
 )
 from PySide6.QtCore import Qt
 import os
 import numpy as np
-
-# Matplotlib 嵌入 PySide6
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 from core.acquire_controller import AcquisitionController
 from core.AcqFunc.AcqFunc import _show
 
 
-# ===================== 内嵌图像画布类 =====================
-class MatplotlibCanvas(FigureCanvas):
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        self.fig = Figure(figsize=(width, height), dpi=dpi)
-        self.ax1 = self.fig.add_subplot(221)
-        self.ax2 = self.fig.add_subplot(222)
-        self.ax3 = self.fig.add_subplot(223)
-        self.ax4 = self.fig.add_subplot(224)
-        
-        super().__init__(self.fig)
-        self.setParent(parent)
-        self.fig.tight_layout(pad=2.0)
-
-    def update_plots(self, data):
-        """更新采集结果图像"""
-        if data is None:
-            return
-
-        self.ax1.clear()
-        self.ax2.clear()
-        self.ax3.clear()
-        self.ax4.clear()
-
-        pos_step = 0.0375
-        cal_sel = (350, 400)
-        rate = 680 / 500
-        log_en = False
-
-        # --- 数据准备 ---
-        histData = np.transpose(data["data"], (2, 1, 0))
-        pos = data["pos0h"][:, 0].astype(np.float64) * pos_step
-
-        # --- 校正 ---
-        pos_sel = np.where((cal_sel[0] <= pos) & (pos < cal_sel[1]))[0]
-        cal_den = histData[:, :, pos_sel].sum(axis=2)
-        cal_num = cal_den.mean(axis=1)[:, None]
-        cal_num = np.where(cal_num == 0, 1, cal_num)
-        cal_den = np.where(cal_den == 0, cal_num, cal_den)
-        cal = (cal_num / cal_den)[:, :, None]
-        img = (histData.astype(np.float64) * cal).sum(axis=0).T
-
-        # --- 图1：扫描图像 ---
-        x = np.arange(img.shape[1]) * rate
-        y = pos
-        im = self.ax1.imshow(
-            img,
-            extent=[x.min(), x.max(), y.min(), y.max()],
-            origin="lower",
-            cmap="gray",
-            aspect="equal"
-        )
-        self.ax1.set_title("Detector Scan Image")
-        self.ax1.set_xlabel("Width (mm)")
-        self.ax1.set_ylabel("Position (mm)")
-        self.fig.colorbar(im, ax=self.ax1, label="Counts")
-
-        # --- 图2：位置曲线 ---
-        self.ax2.set_title("Position Curve")
-        self.ax2.plot(pos)
-        self.ax2.set_xlabel("Index")
-        self.ax2.set_ylabel("Position (mm)")
-
-        # --- 图3：Sum over Y-axis ---
-        self.ax3.set_title("Sum over Y-axis")
-        self.ax3.plot(data["data"].sum(axis=0).T)
-        self.ax3.set_xlabel("Channel")
-        self.ax3.set_ylabel("Counts")
-
-        # --- 图4：Total sum ---
-        self.ax4.set_title("Total sum")
-        self.ax4.plot(data["data"].sum(axis=0).sum(axis=1).T)
-        self.ax4.set_xlabel("Index")
-        self.ax4.set_ylabel("Counts")
-
-        # --- 绘制 ---
-        self.draw()
-
-
-# ===================== 主采集界面类 =====================
 class AcquireTab(QWidget):
     def __init__(self, det_ctrl=None):
         super().__init__()
@@ -109,7 +27,7 @@ class AcquireTab(QWidget):
         w_input = 90
         row = 0
 
-        # === 参数输入 ===
+        # === 采集参数输入 ===
         grid.addWidget(QLabel("电压 (kV)"), row, 0)
         self.voltage = QSpinBox(); self.voltage.setRange(10, 200); self.voltage.setValue(40); self.voltage.setFixedWidth(w_input)
         grid.addWidget(self.voltage, row, 1)
@@ -169,7 +87,6 @@ class AcquireTab(QWidget):
         hb_dir = QHBoxLayout()
         hb_dir.addWidget(self.dir_edit); hb_dir.addWidget(self.dir_btn)
         grid.addLayout(hb_dir, row, 1)
-
         layout.addLayout(grid)
 
         # === 控制按钮 ===
@@ -181,20 +98,58 @@ class AcquireTab(QWidget):
         ctrl.addStretch()
         layout.addLayout(ctrl)
 
-        # === 日志 + 图像显示 ===
+        # === 日志输出 ===
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
         layout.addWidget(self.log_box)
 
-        # 嵌入的 matplotlib 区域
-        self.canvas = MatplotlibCanvas(self)
-        layout.addWidget(self.canvas)
+        # === 绘图参数设置 ===
+        plot_group = QGroupBox("绘图参数设置")
+        plot_layout = QGridLayout()
+
+        # 1️⃣ 帧数据
+        self.show_frame = QCheckBox("帧数据 (Frame)")
+        # self.frame_index = QSpinBox(); self.frame_index.setRange(0, 1000); self.frame_index.setValue(0)
+        plot_layout.addWidget(self.show_frame, 0, 0)
+        # plot_layout.addWidget(QLabel("帧索引:"), 0, 1)
+        # plot_layout.addWidget(self.frame_index, 0, 2)
+
+        # 2️⃣ Naive 重建
+        self.show_recon = QCheckBox("Naive Recon")
+        self.pos_step = QDoubleSpinBox(); self.pos_step.setValue(0.0375)
+        self.rate = QDoubleSpinBox(); self.rate.setValue(680 / 500)
+        self.cal_start = QSpinBox(); self.cal_start.setValue(350)
+        self.cal_end = QSpinBox(); self.cal_end.setValue(400)
+        plot_layout.addWidget(self.show_recon, 1, 0)
+        # plot_layout.addWidget(QLabel("pos_step"), 1, 1)
+        plot_layout.addWidget(self.pos_step, 1, 2)
+        # plot_layout.addWidget(QLabel("rate"), 1, 3)
+        plot_layout.addWidget(self.rate, 1, 4)
+        # plot_layout.addWidget(QLabel("cal_sel"), 1, 5)
+        plot_layout.addWidget(self.cal_start, 1, 6)
+        plot_layout.addWidget(self.cal_end, 1, 7)
+
+        # 3️⃣ Sum(Y)
+        self.show_sumy = QCheckBox("Sum(Y) 曲线")
+        plot_layout.addWidget(self.show_sumy, 2, 0)
+
+        # 4️⃣ TotalSum
+        self.show_totalsum = QCheckBox("TotalSum 曲线")
+        plot_layout.addWidget(self.show_totalsum, 3, 0)
+
+        plot_group.setLayout(plot_layout)
+        layout.addWidget(plot_group)
+
+        # === 绘图按钮 ===
+        self.btn_plot = QPushButton("显示图像")
+        layout.addWidget(self.btn_plot)
 
         self.setLayout(layout)
 
-        # 事件绑定
+        # === 事件绑定 ===
         self.dir_btn.clicked.connect(self.select_dir)
         self.btn_start.clicked.connect(self.start_acquisition)
+        self.btn_plot.clicked.connect(self.show_plots)
 
     # ------------------------------------------------------------
     def select_dir(self):
@@ -208,8 +163,8 @@ class AcquireTab(QWidget):
         if self.det_ctrl is None or self.det_ctrl.offline:
             self.log_box.append("[ERROR] 当前未连接探测器，请先在“连接”界面建立连接。")
             return
-        
-        # --- 采集参数 ---
+
+        # --- 参数 ---
         v, a = self.voltage.value(), self.current.value()
         f1, f2 = self.f1.value(), self.f2.value()
         s = self.speed.value()
@@ -223,35 +178,79 @@ class AcquireTab(QWidget):
         file_name = f"{name}_{s}mmps_{f1}-{f2}_{v}kV_{a}mA_win{win[0]}_{win[1]}-{win[2]}_{dur}s_int{inter}.mat"
         file_path = os.path.join(save_dir, file_name)
 
-        # --- ✅ 在采集前弹窗检查 ---
+        # --- 文件存在检查 ---
         if os.path.exists(file_path):
-            self.log_box.append(f"[WARN] 文件：{file_name} 已存在, 采集终止!")
+            self.log_box.append(f"[WARN] 文件 {file_name} 已存在，采集终止。")
             return
-            # res = QMessageBox.question(
-            #     self,
-            #     "文件已存在",
-            #     f"文件已存在：\n{file_path}\n\n是否覆盖？",
-            #     QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
-            # )
-            # if res == QMessageBox.No or res == QMessageBox.Cancel:
-            #     self.log_box.append("[INFO] 用户取消采集。")
-            #     return  # ✅ 用户拒绝覆盖，直接退出
-            # else:
-            #     self.log_box.append(f"[WARN] 用户选择覆盖已有文件：{file_name}")
 
-        # --- 启动采集 ---
+        # --- 采集 ---
         self.log_box.append(f"[INFO] 开始采集：{file_name}")
-
-        self.acq_ctrl.acquire(
-            file_path, v, a, (f1, f2), s, dur, inter, win, self._on_log_update
-        )
+        self.acq_ctrl.acquire(file_path, v, a, (f1, f2), s, dur, inter, win, self._on_log_update)
 
     # ------------------------------------------------------------
     def _on_log_update(self, level, message):
         """采集状态更新"""
         self.log_box.append(f"{level} {message}")
 
-        # 采集完成后更新嵌入式图像
-        if "[DONE]" in level or level == "[DONE]":
-            if hasattr(self.acq_ctrl, "last_data"):
-                self.canvas.update_plots(self.acq_ctrl.last_data)
+    # ------------------------------------------------------------
+    def show_plots(self):
+        """显示采集结果的图像（弹窗形式）"""
+        if not hasattr(self.acq_ctrl, "last_data") or self.acq_ctrl.last_data is None:
+            self.log_box.append("[WARN] 没有可显示的数据，请先采集。")
+            return
+
+        data = self.acq_ctrl.last_data
+        histData = np.transpose(data["data"], (2, 1, 0))
+
+        plt.figure(figsize=(10,10))
+        # === 帧数据 ===
+        if self.show_frame.isChecked():
+            ax = plt.subplot(221)
+            # np.transpose(data["data"], (2, 1, 0))
+            ax.imshow(histData.sum(axis=0), aspect="auto")
+            ax.set_title(f"Frame data")
+
+        # === Naive 重建 ===
+        if self.show_recon.isChecked():
+            pos_step = self.pos_step.value()
+            rate = self.rate.value()
+            cal_sel = (self.cal_start.value(), self.cal_end.value())
+            pos = np.arange(histData.shape[2]) * pos_step
+
+            pos_sel = np.where((cal_sel[0] <= pos) & (pos < cal_sel[1]))[0]
+            cal_den = histData[:, :, pos_sel].sum(axis=2)
+            cal_num = cal_den.mean(axis=1)[:, None]
+            cal_num = np.where(cal_num == 0, 1, cal_num)
+            cal_den = np.where(cal_den == 0, cal_num, cal_den)
+            cal = (cal_num / cal_den)[:, :, None]
+            img = (histData.astype(np.float64) * cal).sum(axis=0).T
+
+            (x, y, img) = _show(img, pos, rate, log_en=False)
+
+            ax = plt.subplot(222)
+            ax.set_title("Naive Reconstruction")
+            ax.imshow(img, extent=[x.min(), x.max(), y.min(), y.max()],
+                       cmap="gray", origin="lower", aspect="equal")
+            ax.set_xlabel("Width (mm)")
+            ax.set_ylabel("Position (mm)")
+
+        # === Sum over Y ===
+        if self.show_sumy.isChecked():
+            ax = plt.subplot(223)
+            # plt.figure("Sum over Y-axis")
+            ax.plot(data["data"].sum(axis=0).T)
+            ax.set_title("Sum over Y-axis")
+            ax.set_xlabel("Channel")
+            ax.set_ylabel("Counts")
+            # plt.show()
+
+        # === Total Sum ===
+        if self.show_totalsum.isChecked():
+            ax = plt.subplot(224)
+            # ax.figure("Total Sum")
+            ax.plot(data["data"].sum(axis=0).sum(axis=1).T)
+            ax.set_title("Total Sum")
+            ax.set_xlabel("Index")
+            ax.set_ylabel("Counts")
+        
+        plt.show()
