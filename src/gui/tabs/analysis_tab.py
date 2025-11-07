@@ -5,8 +5,6 @@ from PySide6.QtWidgets import (
 )
 from hdf5storage import loadmat
 import numpy as np
-# import matplotlib
-# matplotlib.use('TkAgg')  # 使用 agg 后端，避免启动 GUI
 
 import matplotlib.pyplot as plt
 from core.AcqFunc.AcqFunc import showHist
@@ -36,18 +34,34 @@ class AnalysisTab(QWidget):
 
         # 代码编辑区
         self.code_edit = QTextEdit()
-        self.code_edit.setPlaceholderText(
-            "在这里编写代码，例如：\n"
-            "data_save = loadmat(r'D:\\vxhd\\Acq1106\\test17_666mmps_1650_1950_40kV_7.5mA.mat')\n"
-            "data = {\n"
-            "    'data': np.transpose(data_save['d']['data'], (2, 1, 0)),\n"
-            "    'pos0h': data_save['d']['pos'][:, None]\n"
-            "}\n"
-            "data['data'] = data['data'][:, 254:255, :]\n"
-            "plt.figure(); plt.plot(data['data'].sum(axis=0).T)\n"
-            "plt.show()\n"
-            "showHist(data, pos_en=True, pos_step=0.0375, cal_sel=(350,400), rate=680/500)"
+        self.code_edit = QTextEdit()
+        self.code_edit.setPlainText(
+            'data_save = loadmat(\n'
+            '    r"D:\\vxhd\\Acq1106_enc\\test8_666mmps_1650_1950_100kV_1mA.mat"\n'
+            ')\n'
+            'data = {\n'
+            '    "data": np.transpose(data_save["d"]["data"], (2, 1, 0)),\n'
+            '    "pos0h": data_save["d"]["pos"][:, None]\n'
+            '}\n'
+            'data["data"] = data["data"][:, :, :]\n'
+            'plt.figure()\n'
+            'plt.plot(data["data"].sum(axis=0).T)\n'
+            'plt.show()\n'
+            'plt.figure()\n'
+            'plt.plot(data["data"].sum(axis=0).sum(axis=1).T)\n'
+            'plt.show()\n'
+            'showHist(\n'
+            '    data,\n'
+            '    pos_en=True,\n'
+            '    pos_step=0.0375,\n'
+            '    cal_sel=(350, 400),\n'
+            '    rate=680/500,\n'
+            '    log_en=False,\n'
+            '    caxis=(0, 0),\n'
+            '    save_png=""\n'
+            ')'
         )
+
         layout.addWidget(self.code_edit)
 
         # 输出日志

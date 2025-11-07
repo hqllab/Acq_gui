@@ -152,13 +152,13 @@ class AcquireTab(QWidget):
 
         # 第一行：勾选框 + pos_step + rate
         recon_grid.addWidget(self.show_recon, 0, 0, 1, 2)
-        recon_grid.addWidget(QLabel("pos_step:"), 0, 2)
+        recon_grid.addWidget(QLabel("pos_step(mm):"), 0, 2)
         recon_grid.addWidget(self.pos_step, 0, 3)
         recon_grid.addWidget(QLabel("rate:"), 0, 4)
         recon_grid.addWidget(self.rate, 0, 5)
 
         # 第二行：cal_sel 起止范围
-        recon_grid.addWidget(QLabel("cal_sel:"), 1, 2)
+        recon_grid.addWidget(QLabel("cal_sel(mm):"), 1, 2)
         recon_grid.addWidget(self.cal_start, 1, 3)
         recon_grid.addWidget(QLabel("~"), 1, 4)
         recon_grid.addWidget(self.cal_end, 1, 5)
@@ -288,25 +288,6 @@ class AcquireTab(QWidget):
                        cmap="gray", origin="lower", aspect="equal")
             ax.set_xlabel("Width (mm)")
             ax.set_ylabel("Position (mm)")
-
-        # # === Sum over Y ===
-        # if self.show_sumy.isChecked():
-        #     ax = plt.subplot(223)
-        #     # plt.figure("Sum over Y-axis")
-        #     ax.plot(data["data"].sum(axis=0).T)
-        #     ax.set_title("Sum over Y-axis")
-        #     ax.set_xlabel("Channel")
-        #     ax.set_ylabel("Counts")
-        #     # plt.show()
-
-        # # === Total Sum ===
-        # if self.show_totalsum.isChecked():
-        #     ax = plt.subplot(224)
-        #     # ax.figure("Total Sum")
-        #     ax.plot(data["data"].sum(axis=0).sum(axis=1).T)
-        #     ax.set_title("Total Sum")
-        #     ax.set_xlabel("Index")
-        #     ax.set_ylabel("Counts")
         
         # === 3️⃣ Sum(Y) ===
         if self.show_sumy.isChecked():
