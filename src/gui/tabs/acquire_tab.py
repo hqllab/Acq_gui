@@ -109,6 +109,7 @@ class AcquireTab(QWidget):
 
         # 1️⃣ 帧数据
         self.show_frame = QCheckBox("帧数据 (Frame)")
+        self.show_frame.setChecked(True)  # ✅ 默认选中
         # self.frame_index = QSpinBox(); self.frame_index.setRange(0, 1000); self.frame_index.setValue(0)
         plot_layout.addWidget(self.show_frame, 0, 0)
         # plot_layout.addWidget(QLabel("帧索引:"), 0, 1)
@@ -116,26 +117,80 @@ class AcquireTab(QWidget):
 
         # 2️⃣ Naive 重建
         self.show_recon = QCheckBox("Naive Recon")
-        self.pos_step = QDoubleSpinBox(); self.pos_step.setValue(0.0375)
-        self.rate = QDoubleSpinBox(); self.rate.setValue(680 / 500)
-        self.cal_start = QSpinBox(); self.cal_start.setValue(350)
-        self.cal_end = QSpinBox(); self.cal_end.setValue(400)
-        plot_layout.addWidget(self.show_recon, 1, 0)
-        # plot_layout.addWidget(QLabel("pos_step"), 1, 1)
-        plot_layout.addWidget(self.pos_step, 1, 2)
-        # plot_layout.addWidget(QLabel("rate"), 1, 3)
-        plot_layout.addWidget(self.rate, 1, 4)
-        # plot_layout.addWidget(QLabel("cal_sel"), 1, 5)
-        plot_layout.addWidget(self.cal_start, 1, 6)
-        plot_layout.addWidget(self.cal_end, 1, 7)
+        self.show_recon.setChecked(True)  # ✅ 默认选中
+        
+        # pos_step
+        self.pos_step = QDoubleSpinBox()
+        self.pos_step.setRange(0.0000, 10.0000)
+        self.pos_step.setDecimals(4)           # ✅ 显示 4 位小数
+        self.pos_step.setSingleStep(0.0005)    # ✅ 调整步长
+        self.pos_step.setValue(0.0375)         # ✅ 准确显示 0.0375
+        # self.pos_step.setSuffix(" mm")         # 可选：显示单位
+        self.pos_step.setKeyboardTracking(False)
+
+        # rate
+        self.rate = QDoubleSpinBox()
+        self.rate.setRange(0.000, 100.000)
+        self.rate.setDecimals(3)
+        self.rate.setSingleStep(0.010)
+        self.rate.setValue(680/500)            # ✅ 1.36
+        self.rate.setKeyboardTracking(False)
+
+        # cal_sel
+        self.cal_start = QSpinBox()
+        self.cal_end   = QSpinBox()
+        for sb in (self.cal_start, self.cal_end):
+            sb.setRange(0, 100000)
+        self.cal_start.setValue(350)
+        self.cal_end.setValue(400)
+
+        # ▶︎ 排版：带上标签，紧凑在一行里
+        recon_grid = QGridLayout()
+        recon_grid.setHorizontalSpacing(8)
+        recon_grid.setVerticalSpacing(2)
+        recon_grid.setContentsMargins(5, 2, 5, 2)
+
+        # 第一行：勾选框 + pos_step + rate
+        recon_grid.addWidget(self.show_recon, 0, 0, 1, 2)
+        recon_grid.addWidget(QLabel("pos_step:"), 0, 2)
+        recon_grid.addWidget(self.pos_step, 0, 3)
+        recon_grid.addWidget(QLabel("rate:"), 0, 4)
+        recon_grid.addWidget(self.rate, 0, 5)
+
+        # 第二行：cal_sel 起止范围
+        recon_grid.addWidget(QLabel("cal_sel:"), 1, 2)
+        recon_grid.addWidget(self.cal_start, 1, 3)
+        recon_grid.addWidget(QLabel("~"), 1, 4)
+        recon_grid.addWidget(self.cal_end, 1, 5)
+
+        # 添加到主布局
+        plot_layout.addLayout(recon_grid, 1, 0, 1, 6)
 
         # 3️⃣ Sum(Y)
         self.show_sumy = QCheckBox("Sum(Y) 曲线")
-        plot_layout.addWidget(self.show_sumy, 2, 0)
+        self.show_sumy.setChecked(True)
+        self.sumy_start = QSpinBox(); self.sumy_start.setRange(0, 2048); self.sumy_start.setValue(2)
+        self.sumy_end = QSpinBox(); self.sumy_end.setRange(0, 2048); self.sumy_end.setValue(120)
+        sumy_layout = QHBoxLayout()
+        sumy_layout.addWidget(self.show_sumy)
+        sumy_layout.addWidget(QLabel("idx:"))
+        sumy_layout.addWidget(self.sumy_start)
+        sumy_layout.addWidget(QLabel("~"))
+        sumy_layout.addWidget(self.sumy_end)
+        plot_layout.addLayout(sumy_layout, 2, 0, 1, 6)
 
         # 4️⃣ TotalSum
         self.show_totalsum = QCheckBox("TotalSum 曲线")
-        plot_layout.addWidget(self.show_totalsum, 3, 0)
+        self.show_totalsum.setChecked(True)
+        self.tot_start = QSpinBox(); self.tot_start.setRange(0, 2048); self.tot_start.setValue(2)
+        self.tot_end = QSpinBox(); self.tot_end.setRange(0, 2048); self.tot_end.setValue(120)
+        total_layout = QHBoxLayout()
+        total_layout.addWidget(self.show_totalsum)
+        total_layout.addWidget(QLabel("idx:"))
+        total_layout.addWidget(self.tot_start)
+        total_layout.addWidget(QLabel("~"))
+        total_layout.addWidget(self.tot_end)
+        plot_layout.addLayout(total_layout, 3, 0, 1, 6)
 
         plot_group.setLayout(plot_layout)
         layout.addWidget(plot_group)
@@ -234,23 +289,43 @@ class AcquireTab(QWidget):
             ax.set_xlabel("Width (mm)")
             ax.set_ylabel("Position (mm)")
 
-        # === Sum over Y ===
-        if self.show_sumy.isChecked():
-            ax = plt.subplot(223)
-            # plt.figure("Sum over Y-axis")
-            ax.plot(data["data"].sum(axis=0).T)
-            ax.set_title("Sum over Y-axis")
-            ax.set_xlabel("Channel")
-            ax.set_ylabel("Counts")
-            # plt.show()
+        # # === Sum over Y ===
+        # if self.show_sumy.isChecked():
+        #     ax = plt.subplot(223)
+        #     # plt.figure("Sum over Y-axis")
+        #     ax.plot(data["data"].sum(axis=0).T)
+        #     ax.set_title("Sum over Y-axis")
+        #     ax.set_xlabel("Channel")
+        #     ax.set_ylabel("Counts")
+        #     # plt.show()
 
-        # === Total Sum ===
+        # # === Total Sum ===
+        # if self.show_totalsum.isChecked():
+        #     ax = plt.subplot(224)
+        #     # ax.figure("Total Sum")
+        #     ax.plot(data["data"].sum(axis=0).sum(axis=1).T)
+        #     ax.set_title("Total Sum")
+        #     ax.set_xlabel("Index")
+        #     ax.set_ylabel("Counts")
+        
+        # === 3️⃣ Sum(Y) ===
+        if self.show_sumy.isChecked():
+            s, e = self.sumy_start.value(), self.sumy_end.value()
+            ax = plt.subplot(223)
+            y_data = data["data"].sum(axis=0)[:, s:e]
+            ax.plot(np.arange(data["data"].sum(axis=0).shape[1])[s:e], y_data.T)
+            ax.set_title(f"Sum(Y)  idx[{s}:{e}]")
+
+        # === 4️⃣ TotalSum ===
         if self.show_totalsum.isChecked():
+            s, e = self.tot_start.value(), self.tot_end.value()
             ax = plt.subplot(224)
-            # ax.figure("Total Sum")
-            ax.plot(data["data"].sum(axis=0).sum(axis=1).T)
-            ax.set_title("Total Sum")
-            ax.set_xlabel("Index")
-            ax.set_ylabel("Counts")
+            y_data = data["data"].sum(axis=0)[:, s:e].sum(axis=1)
+            ax.plot(y_data.T)
+            ax.set_title(f"Total Sum  idx[{s}:{e}]")
         
         plt.show()
+        # plt.show(block=False)  # 非阻塞显示
+        # # print("\n📊 图像已显示，按任意键退出窗口...")
+        # input()  # 等待键盘输入
+        # plt.close('all')
