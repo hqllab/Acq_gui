@@ -1,3 +1,10 @@
+'''
+Author: LiuSheng
+Date: 2025-11-06 14:35:28
+LastEditTime: 2025-11-23 14:12:31
+Description: 主窗口类，包含连接、采集、绘图三个tab页
+'''
+
 # gui/main_window.py
 from PySide6.QtWidgets import QMainWindow, QTabWidget
 from gui.tabs.connect_tab import ConnectTab
@@ -12,10 +19,10 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.connect_tab = ConnectTab()
         self.acquire_tab = AcquireTab(det_ctrl=self.connect_tab.controller)
-        self.analysis_tab = AnalysisTab()  # ✅ 新增
+        self.analysis_tab = AnalysisTab()  
 
         self.tabs.addTab(self.connect_tab, "连接")
         self.tabs.addTab(self.acquire_tab, "采集")
-        self.tabs.addTab(self.analysis_tab, "绘图")  # ✅ 新增 Tab
+        self.tabs.addTab(self.analysis_tab, "绘图")
 
         self.setCentralWidget(self.tabs)

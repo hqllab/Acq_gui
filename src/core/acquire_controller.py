@@ -76,8 +76,7 @@ class AcquisitionController:
 
     # ----------------------------------------------------------------------
     def acquire(
-        self, file_path, voltage, current, filter_range,
-        speed, duration, interval, win_params, callback=None
+        self, file_path, duration, interval, win_params, callback=None
     ):
         """
         启动采集流程（异步）
