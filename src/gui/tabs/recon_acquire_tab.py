@@ -15,7 +15,7 @@ import h5py
 from core.func import shift_data
 
 
-class AcquireTab(QWidget):
+class ReconAcquireTab(QWidget):
     def __init__(self, det_ctrl=None):
         super().__init__()
         self.det_ctrl = det_ctrl
@@ -200,7 +200,7 @@ class AcquireTab(QWidget):
         if not name:
             filename = "(未命名)"
         else:
-            filename = f"{name}_{dur}s_frametime{inter}ms.mat"
+            filename = f"{name}_{dur}s_{inter}ms_cali.mat"
 
         self.filename_label.setText(filename)
     
