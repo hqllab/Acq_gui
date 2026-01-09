@@ -1,12 +1,18 @@
+'''
+Author: LiuSheng
+Date: 2025-11-06 16:11:38
+LastEditTime: 2026-01-09 18:15:41
+Description: 封装 DetData 的硬件操作接口
+'''
 # core/det_interface.py
 from core.Det import DetData
 
 class DetInterface:
     """封装 DetData 的硬件操作接口"""
 
-    def __init__(self, ip: str):
+    def __init__(self, ip: str, port):
         """连接指定 IP 的探测器"""
-        srv = DetData(ip)
+        srv = DetData(ip, port)
         dets = srv.findDet()
         if not dets:
             raise ConnectionError(f"未在 {ip} 找到探测器")

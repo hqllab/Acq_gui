@@ -17,11 +17,11 @@ class DetectorController:
         self.offline = True
 
     # ---------------------------------------------------------
-    def connect(self, ip: str, callback=None):
+    def connect(self, ip: str, port: int, callback=None):
         """连接设备 (异步执行)"""
         def run():
             try:
-                self.det = DetInterface(ip)
+                self.det = DetInterface(ip, port)
                 self.offline = False
                 if callback:
                     callback(True, f"成功连接到 {ip}")

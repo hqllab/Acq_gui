@@ -257,6 +257,12 @@ class ReconAcquireTab(QWidget):
         
         from core.func import load_mat_from_file
         raw_pos, raw_data = load_mat_from_file(file_path)
+        
+        # Convert h5py objects to NumPy arrays
+        if hasattr(raw_data, 'value'):
+            raw_data = np.array(raw_data)
+        elif not isinstance(raw_data, np.ndarray):
+            raw_data = np.array(raw_data)
 
         plt.figure(figsize=(10,10))
         # === 帧数据 ===

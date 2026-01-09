@@ -1,10 +1,12 @@
 # gui/tabs/connect_tab.py
+from turtle import title
+from unicodedata import name
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QPushButton, QTextEdit, QLabel, QLineEdit,
     QFormLayout, QSpinBox
 )
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import Qt, QSettings
 from core.detector_controller import DetectorController
 
 
@@ -13,108 +15,169 @@ class ConnectTab(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.controller = DetectorController()
-        self._setup_ui()
-
-    # ---------------------------------------------------------
-    def _setup_ui(self):
-        main_layout = QVBoxLayout()
-
-        # === 第一行：IP + 连接按钮 ===
-        ip_layout = QHBoxLayout()
-        self.ip_edit = QLineEdit()
-        self.ip_edit.setPlaceholderText("例如：10.20.22.230")
         self.settings = QSettings("ScanGUI", "DetectorApp")
-        self.ip_edit.setText(self.settings.value("last_ip", "10.20.22.230"))
-        self.btn_connect = QPushButton("连接探测器")
-        self.btn_connect.clicked.connect(self.connect_device)
-        ip_layout.addWidget(QLabel("设备 IP："))
-        ip_layout.addWidget(self.ip_edit)
-        ip_layout.addWidget(self.btn_connect)
-        main_layout.addLayout(ip_layout)
+        self.cor_controller = DetectorController()
+        self.sag_controller = DetectorController()
+        self.initUI()
+    
+    def _create_device_block(self, title, ip_key, port_key, default_ip, default_port):
+        """
+        创建一个设备的完整控制块
+        返回: (整体布局, IP输入框, 端口输入框, 连接按钮, 状态标签, Info按钮, 激光按钮, Clear按钮)
+        """
+        # --- 外层容器 (GroupBox) ---
+        group_box = QGroupBox(title)
+        # 给 GroupBox 加一点样式，让标题更明显
+        group_box.setStyleSheet("QGroupBox { font-weight: bold; font-size: 14px; border: 1px solid gray; border-radius: 5px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }")
+        
+        # 垂直布局，用于垂直排列 4 行内容
+        v_layout = QVBoxLayout()
+        v_layout.setSpacing(10) # 行间距
+        v_layout.setContentsMargins(15, 25, 15, 15) # 设置边距，上方留出标题位置
 
-        # === 第二行：状态 ===
-        status_layout = QHBoxLayout()
-        self.status_label = QLabel("当前状态：未连接")
-        self.btn_status = QPushButton("获取状态")
-        self.btn_status.clicked.connect(self.get_status)
-        status_layout.addWidget(self.status_label)
-        status_layout.addWidget(self.btn_status)
-        main_layout.addLayout(status_layout)
+        # ====================
+        # 第一行: IP 和 Port
+        # ====================
+        row1 = QHBoxLayout()
+        
+        ip_label = QLabel("网口IP:")
+        ip_edit = QLineEdit()
+        ip_edit.setPlaceholderText("IP")
+        ip_edit.setText(self.settings.value(ip_key, default_ip, type=str))
+        
+        port_label = QLabel("端口:")
+        port_edit = QLineEdit()
+        port_edit.setPlaceholderText("Port")
+        port_edit.setFixedWidth(80)
+        port_edit.setText(self.settings.value(port_key, default_port, type=str))
 
-        # === 第三行：参数设置 ===
-        params_layout = QHBoxLayout()
-        self.pos_params, self.power_inputs, self.det_inputs = [], {}, {}
+        row1.addWidget(ip_label)
+        row1.addWidget(ip_edit)
+        row1.addSpacing(20) # 增加间距
+        row1.addWidget(port_label)
+        row1.addWidget(port_edit)
+        
+        v_layout.addLayout(row1)
 
-        # ---- 位置参数 ----
-        self.group_pos = QGroupBox("位置参数")
-        pos_form = QFormLayout()
-        for i in range(2):
-            cfg = {
-                "pos": QSpinBox(), "en": QLineEdit(),
-                "polarity": QLineEdit(), "clearPos": QLineEdit(),
-                "zeroShift": QSpinBox()
-            }
-            cfg["pos"].setRange(0, 10)
-            cfg["pos"].setValue(i)
-            cfg["en"].setText("1" if i == 0 else "0")
-            cfg["polarity"].setText("1" if i == 0 else "0")
-            cfg["clearPos"].setText("1")
-            cfg["zeroShift"].setRange(0, 10)
-            pos_form.addRow(QLabel(f"位置 {i}："))
-            for k, v in cfg.items():
-                pos_form.addRow(f"  {k}", v)
-            self.pos_params.append(cfg)
-        self.group_pos.setLayout(pos_form)
-        params_layout.addWidget(self.group_pos)
+        # ====================
+        # 第二行: 连接 和 状态
+        # ====================
+        row2 = QHBoxLayout()
 
-        # ---- 电源参数 ----
-        self.group_power = QGroupBox("电源参数")
-        power_form = QFormLayout()
-        for name in ["laser1", "laser0", "opa", "vbias", "vcc12", "vdd25"]:
-            le = QLineEdit()
-            le.setText("1" if name in ["opa", "vbias", "vcc12", "vdd25"] else "0")
-            power_form.addRow(f"{name} (0/1)", le)
-            self.power_inputs[name] = le
-        self.group_power.setLayout(power_form)
-        params_layout.addWidget(self.group_power)
+        connect_btn = QPushButton("连接")
+        connect_btn.setMinimumHeight(30) # 按钮稍微高一点
+        
+        status_label = QLabel("未连接")
+        status_label.setAlignment(Qt.AlignCenter)
+        status_label.setStyleSheet("background-color: #ffe6e6; color: red; padding: 5px;")
+        
+        row2.addWidget(connect_btn)
+        row2.addWidget(status_label)
+        
+        v_layout.addLayout(row2)
 
-        # ---- 探测参数 ----
-        self.group_det = QGroupBox("探测参数")
-        det_form = QFormLayout()
-        defaults = {"packagePix": 64, "pixNum": 256, "winNum": 4, "maxThr": 511}
-        for k, v in defaults.items():
-            sb = QSpinBox()
-            sb.setRange(0, 10000)
-            sb.setValue(v)
-            det_form.addRow(k, sb)
-            self.det_inputs[k] = sb
-        self.group_det.setLayout(det_form)
-        params_layout.addWidget(self.group_det)
+        # ====================
+        # 第三行: 功能 (示例)
+        # ====================
+        row3 = QHBoxLayout()
+        func_label = QLabel("功能区域 (预留):")
+        # 这里可以放你以后需要的其他功能，暂时放个占位
+        # func_btn_example = QPushButton("功能测试")
+        
+        row3.addWidget(func_label)
+        # row3.addWidget(func_btn_example)
+        
+        v_layout.addLayout(row3)
 
-        main_layout.addLayout(params_layout)
+        # ====================
+        # 第四行: 具体指令 (Info, 激光, Clear)
+        # ====================
+        row4 = QHBoxLayout()
+        
+        get_info_btn = QPushButton("查询 Info")
+        laser_btn = QPushButton("激光控制")
+        clear_pos_btn = QPushButton("Clear Pos")
 
-        # === 应用按钮 ===
-        self.btn_apply = QPushButton("应用全部参数")
-        self.btn_apply.clicked.connect(self.apply_all_params)
-        main_layout.addWidget(self.btn_apply)
+        row4.addWidget(get_info_btn)
+        row4.addWidget(laser_btn)
+        row4.addWidget(clear_pos_btn)
+        
+        v_layout.addLayout(row4)
 
-        # === 日志框 ===
+        # --- 完成 ---
+        group_box.setLayout(v_layout)
+        
+        # 返回所有需要交互的控件，方便外部绑定事件
+        return group_box, ip_edit, port_edit, connect_btn, status_label, get_info_btn, laser_btn, clear_pos_btn
+
+    def initUI(self):
+        # 1. 创建总布局：使用 QVBoxLayout (垂直排列)
+        #    这样所有的东西是 上-下 结构的
+        main_layout = QVBoxLayout() 
+        
+        # 2. 创建一个内部布局用于放置设备：使用 QHBoxLayout (水平排列)
+        #    这样两个设备是 左-右 结构的
+        devices_layout = QHBoxLayout()
+        devices_layout.setSpacing(20)
+
+        # --- 创建设备块 ---
+        (cor_group, self.cor_ip_edit, self.cor_port_edit, self.cor_btn, 
+         self.cor_status_label, self.cor_get_info_btn, self.cor_laser_btn, self.cor_clear_btn) = self._create_device_block(
+            "正位探测器 (Coronal)", "cor_ip", "cor_port", "10.20.77.2", "50077"
+        )
+        
+        (sag_group, self.sag_ip_edit, self.sag_port_edit, self.sag_btn, 
+         self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn, self.sag_clear_btn) = self._create_device_block(
+            "侧位探测器 (Sagittal)", "sag_ip", "sag_port", "10.20.99.2", "50099"
+        )
+
+        # 3. 将两个设备块加入 "devices_layout" (水平布局)
+        devices_layout.addWidget(cor_group)
+        devices_layout.addWidget(sag_group)
+
+        # 4. 将 "devices_layout" 加入 "main_layout" (作为上半部分)
+        main_layout.addLayout(devices_layout)
+
+        # 5. === 日志框 (作为下半部分) ===
         self.log_box = QTextEdit()
+        self.log_box.setPlaceholderText("系统日志...")
         self.log_box.setReadOnly(True)
+        # 设置一个合适的高度，或者不设置让它自适应
+        self.log_box.setFixedHeight(150) 
+        
         main_layout.addWidget(self.log_box)
-        self.setLayout(main_layout)
 
+        # 6. 应用总布局
+        self.setLayout(main_layout)
+        
+        
+        
     # ---------------------------------------------------------
-    def connect_device(self):
-        ip = self.ip_edit.text().strip()
-        if not ip:
-            self.log_box.append("[ERROR] IP 地址不能为空。")
+    def connect_device(self, device_type):
+        if device_type == "cor":
+            ip = self.cor_ip_edit.text().strip()
+            port = int(self.cor_port_edit.text().strip())
+            if not ip:
+                self.log_box.append("[ERROR] [正位COR网口] 地址不能为空。")
+                return
+            self.settings.setValue(f"last_cor_ip", ip)
+            self.settings.sync()
+            self.log_box.append(f"[INFO] 正位COR: {ip}:{port} 正在连接 ...")
+            self.cor_controller.connect(ip, port, self._on_connect_result)
+            
+        elif device_type == "sag":
+            ip = self.sag_ip_edit.text().strip()
+            port = int(self.sag_port_edit.text().strip())
+            if not ip:
+                self.log_box.append("[ERROR] [侧位网口] 地址不能为空。")
+                return
+            self.settings.setValue(f"last_sag_ip", ip)
+            self.settings.sync()
+            self.log_box.append(f"[INFO] 侧位SAG: {ip}:{port} 正在连接 ...")
+            self.sag_controller.connect(ip, port, self._on_connect_result)
+        else:
+            self.log_box.append(f"[ERROR] 未知设备类型。")
             return
-        self.settings.setValue("last_ip", ip)
-        self.settings.sync()
-        self.log_box.append(f"[INFO] 正在连接 {ip} ...")
-        self.controller.connect(ip, self._on_connect_result)
 
     def _on_connect_result(self, success, msg):
         self.status_label.setText(f"当前状态：{'已连接' if success else '离线模式'}")

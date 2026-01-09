@@ -2,3 +2,8 @@ from .AcqFunc import histAcq
 from .AcqFunc import saveHist
 from .AcqFunc import showHist
 from .AcqFunc import histAcqNoMove
+from .AcqFunc import saveHistConv
+from .AcqFunc import move
+from .AcqFunc import thrAcqNoMove
+from .AcqFunc import saveThr
+from .AcqFunc import showThr

@@ -1,6 +1,5 @@
 import sys
 import numpy as np
-
 import matplotlib.pyplot as plt
 from hdf5storage import loadmat, savemat
 import subprocess
@@ -38,6 +37,19 @@ def histAcqNoMove(det, cnt=None, time=None, interval = 5 * 10):
     else:
         raise ValueError("请传入时间或次数")
     data = det.histAcq(acq_cnt, interval)
+    sdataIdx = data["idx"].argsort()
+    for i in range(data.shape[0]):
+        data[i, :] = data[i, sdataIdx[i]]
+    return data
+
+def thrAcqNoMove(det, cnt=None, time=None, interval = 5 * 10):
+    if cnt is None and time is not None:
+        acq_cnt = int(time * 1000 * 10 / interval)
+    elif time is None and cnt is not None:
+        acq_cnt = cnt
+    else:
+        raise ValueError("请传入时间或次数")
+    data = det.thrAcq(acq_cnt, interval)
     sdataIdx = data["idx"].argsort()
     for i in range(data.shape[0]):
         data[i, :] = data[i, sdataIdx[i]]
@@ -84,7 +96,7 @@ def _pixCalibration(tdata, calFile: str):
     return cal_cnt
 
 def _save(name, data):
-    real_name = f"{name}"
+    real_name = f"{name}.mat"
     if os.path.exists(real_name):
         y = input("文件存在是否覆盖")
         if y == 'y' or y == 'Y':
@@ -104,14 +116,38 @@ def saveHist(data, name, calFile: str | None = ""):
             "data": np.transpose(data["data"], (2, 1, 0))
         }
     }
-    # plt.figure()
-    # plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
-    # plt.colorbar()
-    # plt.show()
+    plt.figure()
+    plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
+    plt.colorbar()
+    plt.show()
     _save(name, d)
     if calFile is not None and calFile != "":
         d["d"]["data"] = _pixCalibration(d["d"]["data"], calFile)
         _save(f"{name}_caldata", d)
+
+def saveThr(data, name):
+    d = {
+        "d": {
+            "ypos": data[:, 0]["pos1h"],
+            "yposend": data[:, 0]["pos1t"],
+            "pos": data[:, 0]["pos0h"],
+            "posend": data[:, 0]["pos0t"],
+            "data": np.transpose(data["data"].reshape((data["data"].shape[0], -1, data["data"].shape[3])) , (2, 1, 0))
+        }
+    }
+    plt.figure()
+    plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
+    plt.colorbar()
+    plt.show()
+    _save(name, d)
+
+def saveHistConv(name, calFile: str | None = ""):
+    if name.endswith(".mat"):
+        name = name[:-4]
+    d = loadmat(f"{name}.mat")
+    if calFile is not None and calFile != "":
+        d["d"]["data"] = _pixCalibration(d["d"]["data"], calFile)
+        _save(f"{name}_caldata2", d)
 
 def _show(img, pos, rate, log_en):
     # 探测器像素每4个为一组，对应偏移1.6mm
@@ -149,6 +185,13 @@ def _show(img, pos, rate, log_en):
 
     return (x_edges, y_edges, img_corr)
 
+def showThr(data, *arg, **kwarg):
+    data2 = {
+        "pos0h": data["pos0h"],
+        "data": data["data"].reshape((data["data"].shape[0], -1, data["data"].shape[3]))
+    }
+    showHist(data2, *arg, **kwarg)
+
 def showHist(
     data,
     pos_en = True,
@@ -157,6 +200,7 @@ def showHist(
     rate: float = 1.18,
     log_en: bool = True,
     caxis: tuple | None = (0, 0),
+    pos_limit: tuple | None = (0, 0),
     save_png: str = ""
 ):
     histData = np.transpose(data["data"], (2, 1, 0))
@@ -166,6 +210,12 @@ def showHist(
         pos = data["pos0h"][:, 0].astype(np.float64) * pos_step
     else:
         pos = np.arange(histData.shape[2]) * pos_step
+
+    # 限制pos范围
+    if pos_limit is not None and (pos_limit[0] != 0 or pos_limit[1] != 0):
+        idx = np.where((pos <= pos_limit[1]) & (pos >= pos_limit[0]))[0]
+        pos = pos[idx]
+        histData = histData[:, :, idx]
 
     # 校正
     if cal_sel is not None and (cal_sel[0] != 0 or cal_sel[1] != 0):
@@ -184,6 +234,7 @@ def showHist(
     # 绘图
     if pos_en:
         plt.figure()
+        plt.title('pos')
         plt.plot(pos)
         plt.show()
 
