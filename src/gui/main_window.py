@@ -1,7 +1,7 @@
 '''
 Author: LiuSheng
 Date: 2025-11-06 14:35:28
-LastEditTime: 2026-01-12 11:30:42
+LastEditTime: 2026-01-12 16:14:05
 Description: 主窗口类，包含连接、采集、绘图三个tab页
 '''
 
@@ -31,3 +31,11 @@ class MainWindow(QMainWindow):
         # self.tabs.addTab(self.analysis_tab, "绘图")
 
         self.setCentralWidget(self.tabs)
+        
+    def closeEvent(self, event):
+        print("MainWindow closeEvent")
+
+        if self.connect_tab:
+            self.connect_tab.shutdown()
+
+        event.accept()

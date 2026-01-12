@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSettings
 from core.detector_controller import DetectorController
+from core.slz_controller import SLZWorkerThread
 from gui.func import write_log
 
 
@@ -21,6 +22,7 @@ class ConnectTab(QWidget):
         self.settings = QSettings("ScanGUI", "DetectorApp")
         self.cor_controller = DetectorController()
         self.sag_controller = DetectorController()
+        self.arm_thread = None  # 机械臂控制器，稍后初始化
         self.initUI()
         self.bind_events()
         
@@ -129,29 +131,25 @@ class ConnectTab(QWidget):
         v_layout.setSpacing(10)
         v_layout.setContentsMargins(15, 25, 15, 15)
 
-        # --- 第一行: 连接控制 (IP靠左短，连接状态靠右) ---
+        # --- 第一行: 连接控制 ---
         row1 = QHBoxLayout()
-        
-        # 左侧部分：IP
         row1.addWidget(QLabel("IP:"))
-        self.arm_ip_edit = QLineEdit("10.20.55.2")
-        self.arm_ip_edit.setFixedWidth(100)
+        # 默认 IP 与原脚本一致
+        self.arm_ip_edit = QLineEdit("10.20.22.232") 
+        self.arm_ip_edit.setFixedWidth(120)
         row1.addWidget(self.arm_ip_edit)
         
         row1.addStretch()
         
-        # 右侧部分：连接和状态
+        # 这里的连接按钮，我们用命令行的 reconnect / disconnect 命令来实现
         self.arm_connect_btn = QPushButton("连接")
-        self.arm_connect_btn.setFixedWidth(70) 
+        self.arm_connect_btn.setFixedWidth(120) 
         
         self.arm_status_label = QLabel("未连接")
-        self.arm_status_label.setFixedWidth(120)
         self.arm_status_label.setAlignment(Qt.AlignCenter)
-        # 初始状态背景：浅红色或灰色
-        self.arm_status_label.setStyleSheet("background-color: #ffe6e6; color: red; padding: 3px; border-radius: 3px;")
+        self.arm_status_label.setStyleSheet("background-color: #ffe6e6; color: red; padding: 5px;")
         
         row1.addWidget(self.arm_connect_btn)
-        row1.addWidget(self.arm_status_label)
         v_layout.addLayout(row1)
 
         # 分割线
@@ -160,44 +158,47 @@ class ConnectTab(QWidget):
         line.setFrameShadow(QFrame.Sunken)
         v_layout.addWidget(line)
 
-        # --- 第二行: 移动参数设置与按钮 ---
+        # --- 第二行: 移动参数 ---
         row2 = QHBoxLayout()
         
-        # 位置
         self.arm_pos_spin = QDoubleSpinBox()
-        self.arm_pos_spin.setRange(0, 1850)
-        self.arm_pos_spin.setSuffix(" mm")
-        self.arm_pos_spin.setFixedWidth(150)
+        self.arm_pos_spin.setRange(-5000, 5000) # 范围放大一点
+        self.arm_pos_spin.setSuffix(" (0.1mm)") # 注意原脚本单位是 0.1mm
+        self.arm_pos_spin.setDecimals(0)
+        self.arm_pos_spin.setFixedWidth(120)
         
-        # 速度
         self.arm_speed_spin = QDoubleSpinBox()
-        self.arm_speed_spin.setRange(0, 200)
+        self.arm_speed_spin.setRange(0, 1000)
         self.arm_speed_spin.setValue(50)
-        self.arm_speed_spin.setSuffix(" mm/s")
+        self.arm_speed_spin.setSuffix(" (0.1mm/s)")
         self.arm_speed_spin.setFixedWidth(120)
         
-        row2.addWidget(QLabel("位置:"))
+        row2.addWidget(QLabel("Pos:"))
         row2.addWidget(self.arm_pos_spin)
-        row2.addSpacing(5)
-        row2.addWidget(QLabel("速度:"))
+        row2.addWidget(QLabel("Spd:"))
         row2.addWidget(self.arm_speed_spin)
         
         row2.addStretch()
         
-        # 移动按钮
-        self.arm_move_btn = QPushButton("移动 (Move)")
-        self.arm_move_btn.setMinimumHeight(30)
-        self.arm_move_btn.setFixedWidth(100)
-        
-        # --- 关键修改：初始设为不可用（变灰） ---
-        self.arm_move_btn.setEnabled(False) 
+        self.arm_move_btn = QPushButton("移动(move)")
+        self.arm_move_btn.setEnabled(False) # 默认开启，是否成功由 cmd2 内部逻辑决定
         
         row2.addWidget(self.arm_move_btn)
         v_layout.addLayout(row2)
+        
+        # --- 第四行: 手动输入命令 (高级功能) ---
+        row4 = QHBoxLayout()
+        self.cmd_input = QLineEdit()
+        self.cmd_input.setPlaceholderText("在此输入原始 cmd2 命令，例如: set_voltage 0 60")
+        self.btn_send_cmd = QPushButton("发送")
+        self.btn_send_cmd.setEnabled(False)  # 默认禁用，连接后启用
+        
+        row4.addWidget(self.cmd_input)
+        row4.addWidget(self.btn_send_cmd)
+        v_layout.addLayout(row4)
 
         group_box.setLayout(v_layout)
         return group_box
-    
     
     def initUI(self):
         # 1. 创建总布局：使用 QVBoxLayout (垂直排列)
@@ -281,6 +282,84 @@ class ConnectTab(QWidget):
             lambda: self.laser_control("sag")
         )
         
+        self.arm_connect_btn.clicked.connect(
+            lambda: self.toggle_arm_thread()
+        )
+        
+        # 2. 移动指令
+        self.arm_move_btn.clicked.connect(self.cmd_move)
+        
+        # 3. 其他指令
+        # self.arm_reset_btn.clicked.connect(lambda: self.send_cmd("reset_motor_error"))
+    
+    def shutdown(self):
+        if self.arm_thread and self.arm_thread.isRunning():
+            write_log(self.log_box, "[GUI] 正在关闭机械臂线程...")
+            self.arm_thread.stop()
+            self.arm_thread.wait()
+            self.arm_thread.deleteLater()
+            self.arm_thread = None
+            
+    # def closeEvent(self, event):
+    #     if self.arm_thread and self.arm_thread.isRunning():
+    #         write_log(self.log_box, "[GUI] 正在关闭机械臂线程...")
+    #         self.arm_thread.stop()
+    #         self.arm_thread.wait()
+    #         self.arm_thread.deleteLater()
+    #         self.arm_thread = None
+    #     event.accept()
+        
+    def toggle_arm_thread(self):
+        """处理 开启/关闭 线程"""
+        # 如果线程存在且正在运行 -> 停止它
+        if self.arm_thread and self.arm_thread.isRunning():
+            write_log(self.log_box, "[GUI] 正在停止机械臂线程...")
+            self.arm_thread.stop()
+            self.arm_thread.deleteLater()
+            self.arm_thread = None
+            
+            # 更新 UI
+            self.arm_connect_btn.setText("连接 (启动线程)")
+            self.arm_status_label.setText("已停止")
+            self.arm_status_label.setStyleSheet("background-color: #ffe6e6; color: red;")
+            self.arm_move_btn.setEnabled(False)
+            self.arm_reset_btn.setEnabled(False)
+            
+        else:
+            # 启动线程
+            write_log(self.log_box, "[GUI] 正在启动机械臂线程...")
+            self.arm_thread = SLZWorkerThread()
+            
+            # 【绑定信号】：把线程里的日志，打印到 log_box
+            self.arm_thread.sig_log.connect(lambda msg: write_log(self.log_box, msg))
+            
+            # 启动！
+            self.arm_thread.start()
+            
+            # 更新 UI
+            # self.arm_connect_btn.setText("断开 (停止线程)")
+            self.arm_status_label.setText("已连接")
+            self.arm_status_label.setStyleSheet("background-color: #d4edda; color: green;")
+            self.arm_move_btn.setEnabled(True)
+            self.btn_send_cmd.setEnabled(True)
+            
+            # 注意：真实的连接是在线程内部初始化的，
+            # 如果你想支持动态 IP，需要在 start() 之前把 IP 传给线程，
+            # 或者 send_cmd("reconnect")
+
+    def send_cmd(self, cmd_str):
+        """发送指令的通用方法"""
+        if self.arm_thread and self.arm_thread.isRunning():
+            self.arm_thread.send_command(cmd_str)
+        else:
+            write_log(self.log_box, "[ERROR] 线程未运行，无法发送指令。")
+
+    def cmd_move(self):
+        """拼接 move 参数并发送"""
+        pos = int(self.arm_pos_spin.value())
+        speed = int(self.arm_speed_spin.value())
+        # 发送字符串命令，就像你在 cmd 里面敲的一样
+        self.send_cmd(f"move {pos} {speed}")
     
     # ---------------------------------------------------------
     def connect_device(self, device_type):
