@@ -1,13 +1,17 @@
 '''
 Author: LiuSheng
 Date: 2025-11-06 16:12:14
-LastEditTime: 2026-01-12 11:26:51
+LastEditTime: 2026-01-12 18:51:53
 Description: 
 '''
 # core/detector_controller.py
-from matplotlib.pylab import det
+# from core.Det.Det import Det
+# from core.Det.DetData import DetData
 from core.det_interface import DetInterface
+from core.AcqFunc.AcqFunc import histAcqNoMove
+from core.AcqFunc.AcqFunc import saveHist
 import threading
+
 
 
 default_config = {
@@ -97,3 +101,21 @@ class DetectorController:
         except Exception as e:
             if callback:
                 callback(False, f"激光器控制失败: {e}")
+    
+    def start_acquire(self, acq_mode, win_range, time, interval, filepath, callback=None):
+        """启动数据采集"""
+        if self.offline or not self.det:
+            callback(False, "离线模式无法启动采集。")
+            return
+        try:
+            if acq_mode == "spectral":
+                self.det.det.setWinRange(0, win_range[0], win_range[1])
+                data = histAcqNoMove(self.det.det, cnt=None, time=time, interval = int(interval * 10))
+                saveHist(data, filepath, None)
+            
+            
+            if callback:
+                callback(True, "数据采集已启动。")
+        except Exception as e:
+            if callback:
+                callback(False, f"采集启动失败: {e}")

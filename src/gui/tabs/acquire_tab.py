@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSettings
 from gui.func import write_log
+import time
 
 class AcquireTab(QWidget):
     """采集参数设置与控制界面"""
@@ -96,16 +97,82 @@ class AcquireTab(QWidget):
         acq_v_layout = QVBoxLayout()
         acq_v_layout.setSpacing(5)
 
+        # acq_v_layout.addWidget(QLabel("数据模式:"))
+        # data_opt_row = QHBoxLayout()
+        # data_opt_row.addSpacing(25)
+        # radio_spectral = QRadioButton("能谱")
+        # radio_binned = QRadioButton("合并能窗")
+        # radio_spectral.setChecked(True)
+        # data_group = QButtonGroup(main_panel)
+        # data_group.addButton(radio_spectral); data_group.addButton(radio_binned)
+        # data_opt_row.addWidget(radio_spectral); data_opt_row.addWidget(radio_binned); data_opt_row.addStretch()
+        # acq_v_layout.addLayout(data_opt_row)# 数据模式选择
         acq_v_layout.addWidget(QLabel("数据模式:"))
         data_opt_row = QHBoxLayout()
         data_opt_row.addSpacing(25)
+
         radio_spectral = QRadioButton("能谱")
         radio_binned = QRadioButton("合并能窗")
         radio_spectral.setChecked(True)
+
         data_group = QButtonGroup(main_panel)
-        data_group.addButton(radio_spectral); data_group.addButton(radio_binned)
-        data_opt_row.addWidget(radio_spectral); data_opt_row.addWidget(radio_binned); data_opt_row.addStretch()
+        data_group.addButton(radio_spectral)
+        data_group.addButton(radio_binned)
+
+        data_opt_row.addWidget(radio_spectral)
+        data_opt_row.addWidget(radio_binned)
+        data_opt_row.addStretch()
         acq_v_layout.addLayout(data_opt_row)
+
+        # -----------------------
+        # 能谱范围 (上下限)
+        # -----------------------
+        spectral_group = QGroupBox("能谱范围")
+        spectral_layout = QHBoxLayout(spectral_group)
+        spectral_layout.addWidget(QLabel("下限:"))
+        spectral_min = QSpinBox()
+        spectral_min.setRange(0, 120)
+        spectral_layout.addWidget(spectral_min)
+        spectral_layout.addWidget(QLabel("上限:"))
+        spectral_max = QSpinBox()
+        spectral_max.setRange(0, 120)
+        spectral_layout.addWidget(spectral_max)
+        acq_v_layout.addWidget(spectral_group)
+
+        # -----------------------
+        # 合并能窗范围 (四个上下限)
+        # -----------------------
+        binned_group = QGroupBox("合并能窗范围")
+        binned_layout = QVBoxLayout(binned_group)
+        binned_spinboxes = []
+        for i in range(4):
+            row = QHBoxLayout()
+            row.addWidget(QLabel(f"窗{i+1}下限:"))
+            min_spin = QSpinBox()
+            min_spin.setRange(0, 120)
+            row.addWidget(min_spin)
+            row.addWidget(QLabel(f"窗{i+1}上限:"))
+            max_spin = QSpinBox()
+            max_spin.setRange(0, 120)
+            row.addWidget(max_spin)
+            binned_layout.addLayout(row)
+            binned_spinboxes.append((min_spin, max_spin))
+        acq_v_layout.addWidget(binned_group)
+
+        # 默认显示能谱，隐藏合并能窗
+        spectral_group.setVisible(True)
+        binned_group.setVisible(False)
+        
+        def update_mode():
+            if radio_spectral.isChecked():
+                spectral_group.setVisible(True)
+                binned_group.setVisible(False)
+            else:
+                spectral_group.setVisible(False)
+                binned_group.setVisible(True)
+        
+        radio_spectral.toggled.connect(update_mode)
+        radio_binned.toggled.connect(update_mode)
 
         acq_v_layout.addWidget(QLabel("采集模式:"))
         mode_opt_row = QHBoxLayout()
@@ -146,6 +213,8 @@ class AcquireTab(QWidget):
         return {
             "panel": main_panel, "kv": kv_spin, "ma": ma_spin,
             "radio_spectral": radio_spectral, "radio_binned": radio_binned,
+            "spectral": (spectral_min, spectral_max),
+            "binned_spinboxes": binned_spinboxes,
             "radio_sync": radio_sync, "radio_fixed": radio_fixed,
             "fixed_duration": fixed_duration_spin, "time": time_spin, 
             "sid": sid_spin, "sdd": sdd_spin
@@ -261,8 +330,11 @@ class AcquireTab(QWidget):
                         f"{mode_tag}_{ui['time'].value()}ms_{ui['sid'].value()}mm_{suffix}.mat")
             return os.path.join(save_dir, filename)
 
-        self.cor_preview_label.setText(f"正位路径: {generate_path(self.cor_ui, 'cor')}")
-        self.sag_preview_label.setText(f"侧位路径: {generate_path(self.sag_ui, 'sag')}")
+        self.cor_save_path = generate_path(self.cor_ui, "cor")
+        self.sag_save_path = generate_path(self.sag_ui, "sag")
+        
+        self.cor_preview_label.setText(f"正位路径: {self.cor_save_path}")
+        self.sag_preview_label.setText(f"侧位路径: {self.sag_save_path}")
 
     def bind_events(self):
         """绑定 UI 事件"""
@@ -300,9 +372,9 @@ class AcquireTab(QWidget):
             self._update_frametime_range(ui) # 初始化范围限制
         
         # 6. 绑定采集
-        self.start_btn.clicked.connect(self.start_acquisition)
+        self.start_btn.clicked.connect(self.start_acq_pipeline)
         
-    def start_acquisition(self):
+    def start_acq_pipeline(self):
         if self.cor_ctrl is None or self.cor_ctrl.det is None or self.cor_ctrl.offline:
             write_log(self.log_box, "[Error] 错误：未连接正位[COR]探测器，无法采集！")
             return
@@ -317,7 +389,69 @@ class AcquireTab(QWidget):
         
         write_log(self.log_box, "[Info] 开始采集...")
         
-        # 第一步, 设置 机械臂参数 和 电压电流参数
+        # 第一步, 生成script.txt 文件, 设置 机械臂参数 和 电压电流参数
+        cmds = []
+        cmds.append(f"exit_exposure_mode")
+        cmds.append(f"allow_exposure 1")
+        # cmds.append(f"set_max_exposure_time 0 9000")
+        # cmds.append(f"set_max_exposure_time 1 9000")
+        
+        # 球管B -> 正位
+        cmds.append(f"set_voltage 0 {self.sag_ui['kv'].value()}")   
+        cmds.append(f"set_current 0 {self.sag_ui['ma'].value()}")
+        # 球管A -> 侧位
+        cmds.append(f"set_voltage 1 {self.cor_ui['kv'].value()}")
+        cmds.append(f"set_current 1 {self.cor_ui['ma'].value()}")
+        
+        # 机械臂位置
+        cmds.append(f"move {int(self.start_pos.value()*10)} {2000}")
+        cmds.append(f"set_exposure_pos {int(self.end_pos.value()*10)} {int(self.speed.value()*10)}")
+        cmds.append(f"enter_exposure_mode")
+        
+        for cmd in cmds:
+            self.arm_thread.send_command(cmd)
+            time.sleep(0.05)
+            
+            if "move" in cmd:
+                time.sleep(0.4)
+                
+            write_log(self.log_box, f"[Info] 发送指令: {cmd}")
+        
+        cor_acq_mode = "spectral" if self.cor_ui["radio_spectral"].isChecked() else "binned"
+        cor_win_range = []
+        if cor_acq_mode == "spectral":
+            cor_win_range = (self.cor_ui["spectral_min"].value(), self.cor_ui["spectral_max"].value())
+        else:
+            for min_spin, max_spin in self.cor_ui["binned_spinboxes"]:
+                cor_win_range.append( (min_spin.value(), max_spin.value()) )
+        if os.path.exists(self.cor_save_path):
+            write_log(self.log_box, f"[Error]: {self.cor_save_path} 文件已存在！")
+            return
+        self.cor_ctrl.start_acquire(
+            acq_mode = cor_acq_mode,
+            win_range = cor_win_range,
+            time = self.cor_ui["time"].value(),
+            interval = self.cor_ui["interval"].value(),
+            filepath = self.cor_save_path,
+        )
+        
+        sag_acq_mode = "spectral" if self.sag_ui["radio_spectral"].isChecked() else "binned"
+        sag_win_range = []
+        if sag_acq_mode == "spectral":
+            sag_win_range = (self.sag_ui["spectral_min"].value(), self.sag_ui["spectral_max"].value())
+        else:
+            for min_spin, max_spin in self.sag_ui["binned_spinboxes"]:
+                sag_win_range.append( (min_spin.value(), max_spin.value()) )
+        if os.path.exists(self.sag_save_path):
+            write_log(self.log_box, f"[Error]: {self.sag_save_path} 文件已存在！")
+            return
+        self.sag_ctrl.start_acquire(
+            acq_mode = sag_acq_mode,
+            win_range = sag_win_range,
+            time = self.sag_ui["time"].value(),
+            interval = self.sag_ui["interval"].value(),
+            filepath = self.sag_save_path,
+        )
         
         
         

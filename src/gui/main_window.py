@@ -11,22 +11,6 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Acquire GUI")
-        # -----------------------------
-        # 2. Tabs
-        # -----------------------------
-        self.tabs = QTabWidget()
-
-        self.connect_tab = ConnectTab(log_box=self.log_box)
-        self.cali_acquire_tab = AcquireTab(
-            cor_ctrl=self.connect_tab.cor_controller,
-            sag_ctrl=self.connect_tab.sag_controller,
-            arm_thread=self.connect_tab.arm_thread,
-            log_box=self.log_box
-        )
-
-        self.tabs.addTab(self.connect_tab, "连接")
-        self.tabs.addTab(self.cali_acquire_tab, "采集")
-        
         
         # -----------------------------
         # 1. 日志 GroupBox + TextEdit
@@ -54,6 +38,21 @@ class MainWindow(QMainWindow):
         self.log_box.setReadOnly(True)
 
         log_layout.addWidget(self.log_box)  # ✅ 只加一次
+        # -----------------------------
+        # 2. Tabs
+        # -----------------------------
+        self.tabs = QTabWidget()
+
+        self.connect_tab = ConnectTab(log_box=self.log_box)
+        self.cali_acquire_tab = AcquireTab(
+            cor_ctrl=self.connect_tab.cor_controller,
+            sag_ctrl=self.connect_tab.sag_controller,
+            arm_thread=self.connect_tab.arm_thread,
+            log_box=self.log_box
+        )
+
+        self.tabs.addTab(self.connect_tab, "连接")
+        self.tabs.addTab(self.cali_acquire_tab, "采集")
 
         # -----------------------------
         # 3. Central layout
