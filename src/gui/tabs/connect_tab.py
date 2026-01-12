@@ -6,7 +6,7 @@ from unicodedata import name
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QPushButton, QTextEdit, QLabel, QLineEdit,
-    QFormLayout, QSpinBox
+    QDoubleSpinBox, QFrame
 )
 from PySide6.QtCore import Qt, QSettings
 from core.detector_controller import DetectorController
@@ -120,6 +120,85 @@ class ConnectTab(QWidget):
         # 返回所有需要交互的控件，方便外部绑定事件
         return group_box, ip_edit, port_edit, connect_btn, status_label, get_info_btn, laser_btn, clear_pos_btn
 
+    
+    def _create_arm_block(self):
+        """机械臂控制模块"""
+        group_box = QGroupBox("机械臂 (Robotic Arm)")
+        group_box.setStyleSheet(self._get_group_style())
+        v_layout = QVBoxLayout()
+        v_layout.setSpacing(10)
+        v_layout.setContentsMargins(15, 25, 15, 15)
+
+        # --- 第一行: 连接控制 (IP靠左短，连接状态靠右) ---
+        row1 = QHBoxLayout()
+        
+        # 左侧部分：IP
+        row1.addWidget(QLabel("IP:"))
+        self.arm_ip_edit = QLineEdit("10.20.55.2")
+        self.arm_ip_edit.setFixedWidth(100)
+        row1.addWidget(self.arm_ip_edit)
+        
+        row1.addStretch()
+        
+        # 右侧部分：连接和状态
+        self.arm_connect_btn = QPushButton("连接")
+        self.arm_connect_btn.setFixedWidth(70) 
+        
+        self.arm_status_label = QLabel("未连接")
+        self.arm_status_label.setFixedWidth(120)
+        self.arm_status_label.setAlignment(Qt.AlignCenter)
+        # 初始状态背景：浅红色或灰色
+        self.arm_status_label.setStyleSheet("background-color: #ffe6e6; color: red; padding: 3px; border-radius: 3px;")
+        
+        row1.addWidget(self.arm_connect_btn)
+        row1.addWidget(self.arm_status_label)
+        v_layout.addLayout(row1)
+
+        # 分割线
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        v_layout.addWidget(line)
+
+        # --- 第二行: 移动参数设置与按钮 ---
+        row2 = QHBoxLayout()
+        
+        # 位置
+        self.arm_pos_spin = QDoubleSpinBox()
+        self.arm_pos_spin.setRange(0, 1850)
+        self.arm_pos_spin.setSuffix(" mm")
+        self.arm_pos_spin.setFixedWidth(150)
+        
+        # 速度
+        self.arm_speed_spin = QDoubleSpinBox()
+        self.arm_speed_spin.setRange(0, 200)
+        self.arm_speed_spin.setValue(50)
+        self.arm_speed_spin.setSuffix(" mm/s")
+        self.arm_speed_spin.setFixedWidth(120)
+        
+        row2.addWidget(QLabel("位置:"))
+        row2.addWidget(self.arm_pos_spin)
+        row2.addSpacing(5)
+        row2.addWidget(QLabel("速度:"))
+        row2.addWidget(self.arm_speed_spin)
+        
+        row2.addStretch()
+        
+        # 移动按钮
+        self.arm_move_btn = QPushButton("移动 (Move)")
+        self.arm_move_btn.setMinimumHeight(30)
+        self.arm_move_btn.setFixedWidth(100)
+        
+        # --- 关键修改：初始设为不可用（变灰） ---
+        self.arm_move_btn.setEnabled(False) 
+        
+        row2.addWidget(self.arm_move_btn)
+        v_layout.addLayout(row2)
+
+        group_box.setLayout(v_layout)
+        return group_box
+    
+    
     def initUI(self):
         # 1. 创建总布局：使用 QVBoxLayout (垂直排列)
         #    这样所有的东西是 上-下 结构的
@@ -148,6 +227,14 @@ class ConnectTab(QWidget):
         # 4. 将 "devices_layout" 加入 "main_layout" (作为上半部分)
         main_layout.addLayout(devices_layout)
 
+        
+        # 3. 机械臂 (新增模块)
+        arm_group_layout = QVBoxLayout()
+        arm_group = self._create_arm_block()
+        arm_group_layout.addWidget(arm_group) # 添加到同一排
+        main_layout.addLayout(arm_group_layout)
+        
+        
         # 5. === 日志框 (作为下半部分) ===
         log_group = QGroupBox("输出日志")
         log_group.setStyleSheet(self._get_group_style())
@@ -159,11 +246,6 @@ class ConnectTab(QWidget):
         self.log_box = QTextEdit()
         self.log_box.setPlaceholderText("输出日志...")
         self.log_box.setReadOnly(True)
-        # self.log_box.textChanged.connect(
-        #     lambda: self.log_box.verticalScrollBar().setValue(
-        #         self.log_box.verticalScrollBar().maximum()
-        #     )
-        # )
         
         log_inner_layout.addWidget(self.log_box)
         
