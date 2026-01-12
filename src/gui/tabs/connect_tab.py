@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSettings
 from core.detector_controller import DetectorController
+from gui.func import write_log
 
 
 class ConnectTab(QWidget):
@@ -22,6 +23,11 @@ class ConnectTab(QWidget):
         self.sag_controller = DetectorController()
         self.initUI()
         self.bind_events()
+        
+    
+    def _get_group_style(self):
+        """统一获取 GroupBox 样式，保持与 ConnectTab 一致"""
+        return "QGroupBox { font-weight: bold; font-size: 14px; border: 1px solid gray; border-radius: 5px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }"
     
     def _create_device_block(self, title, ip_key, port_key, default_ip, default_port):
         """
@@ -31,7 +37,7 @@ class ConnectTab(QWidget):
         # --- 外层容器 (GroupBox) ---
         group_box = QGroupBox(title)
         # 给 GroupBox 加一点样式，让标题更明显
-        group_box.setStyleSheet("QGroupBox { font-weight: bold; font-size: 14px; border: 1px solid gray; border-radius: 5px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }")
+        group_box.setStyleSheet(self._get_group_style())
         
         # 垂直布局，用于垂直排列 4 行内容
         v_layout = QVBoxLayout()
@@ -100,6 +106,7 @@ class ConnectTab(QWidget):
         get_info_btn = QPushButton("查询 Info")
         laser_btn = QPushButton("激光控制")
         clear_pos_btn = QPushButton("Clear Pos")
+        clear_pos_btn.setEnabled(False)  # <--- 禁用：变灰，不可点击
 
         row4.addWidget(get_info_btn)
         row4.addWidget(laser_btn)
@@ -142,15 +149,31 @@ class ConnectTab(QWidget):
         main_layout.addLayout(devices_layout)
 
         # 5. === 日志框 (作为下半部分) ===
+        log_group = QGroupBox("输出日志")
+        log_group.setStyleSheet(self._get_group_style())
+        
+        # 创建一个垂直布局给 GroupBox 内部使用
+        log_inner_layout = QVBoxLayout()
+        log_inner_layout.setContentsMargins(10, 25, 10, 10) # 上边距留大一点给标题
+
         self.log_box = QTextEdit()
         self.log_box.setPlaceholderText("输出日志...")
         self.log_box.setReadOnly(True)
-        # 设置一个合适的高度，或者不设置让它自适应
-        self.log_box.setFixedHeight(150) 
+        # self.log_box.textChanged.connect(
+        #     lambda: self.log_box.verticalScrollBar().setValue(
+        #         self.log_box.verticalScrollBar().maximum()
+        #     )
+        # )
         
-        main_layout.addWidget(self.log_box)
+        log_inner_layout.addWidget(self.log_box)
+        
+        # 将内部布局应用到 GroupBox
+        log_group.setLayout(log_inner_layout)
 
-        # 6. 应用总布局
+        # 6. 将 GroupBox 加入主布局，并设置 stretch=1 (让它占据剩余所有垂直空间)
+        main_layout.addWidget(log_group, stretch=1)
+
+        # 7. 应用总布局
         self.setLayout(main_layout)
         
     def bind_events(self):
@@ -184,11 +207,11 @@ class ConnectTab(QWidget):
             port = int(self.cor_port_edit.text().strip())
             status_label = self.cor_status_label
             if not ip:
-                self.log_box.append("[ERROR] [正位COR网口] 地址不能为空。")
+                write_log(self.log_box, "[ERROR] [正位COR网口] 地址不能为空。")
                 return
             self.settings.setValue(f"last_cor_ip", ip)
             self.settings.sync()
-            self.log_box.append(f"[INFO] 正位COR: {ip}:{port} 正在连接 ...")
+            write_log(self.log_box, f"[INFO] 正位COR: {ip}:{port} 正在连接 ...")
             self.cor_controller.connect(ip, port, status_label, self._on_connect_result)
             
 
@@ -197,14 +220,14 @@ class ConnectTab(QWidget):
             port = int(self.sag_port_edit.text().strip())
             status_label = self.sag_status_label
             if not ip:
-                self.log_box.append("[ERROR] [侧位网口] 地址不能为空。")
+                write_log(self.log_box, "[ERROR] [侧位网口] 地址不能为空。")
                 return
             self.settings.setValue(f"last_sag_ip", ip)
             self.settings.sync()
-            self.log_box.append(f"[INFO] 侧位SAG: {ip}:{port} 正在连接 ...")
+            write_log(self.log_box, f"[INFO] 侧位SAG: {ip}:{port} 正在连接 ...")
             self.sag_controller.connect(ip, port, status_label, self._on_connect_result)
         else:
-            self.log_box.append(f"[ERROR] 未知设备类型。")
+            write_log(self.log_box, f"[ERROR] 未知设备类型。")
             return
 
     def _on_connect_result(self, success, status_label, msg):
@@ -221,30 +244,30 @@ class ConnectTab(QWidget):
         status_label.setStyleSheet(style)
         
         # 记录日志
-        self.log_box.append(f"[{'INFO' if success else 'ERROR'}] {msg}")
+        write_log(self.log_box, f"[{'INFO' if success else 'ERROR'}] {msg}")
 
     # ---------------------------------------------------------
     def get_det_info(self, device_type):
         if device_type == "cor":
-            self.log_box.append("[INFO] 正在读取[正位COR]状态...")
+            write_log(self.log_box, "[INFO] 正在读取[正位COR]状态...")
             self.cor_controller.get_status(self._on_status_result)
         elif device_type == "sag":
-            self.log_box.append("[INFO] 正在读取[侧位SAG]状态...")
+            write_log(self.log_box, "[INFO] 正在读取[侧位SAG]状态...")
             self.sag_controller.get_status(self._on_status_result)
         else:
-            self.log_box.append(f"[ERROR] 未知设备类型。")
+            write_log(self.log_box, f"[ERROR] 未知设备类型。")
             return
 
     def _on_status_result(self, success, result):
         """状态结果回调"""
         if success:
             # 在日志框中逐行输出状态
-            self.log_box.append("[DONE] 状态更新完成。")
-            self.log_box.append("[INFO] 状态信息：")
+            write_log(self.log_box, "[INFO] 状态更新完成。")
+            write_log(self.log_box, "[INFO] 状态信息：")
             for k, v in result.items():
-                self.log_box.append(f"  {k}: {json.dumps(v, indent=2, ensure_ascii=False)}")
+                write_log(self.log_box, f"  {k}: {json.dumps(v, indent=2, ensure_ascii=False)}")
         else:
-            self.log_box.append(f"[ERROR] 获取状态失败：{result}")
+            write_log(self.log_box, f"[ERROR] 获取状态失败：{result}")
 
     def laser_control(self, device_type):
         if device_type == "cor":
@@ -252,12 +275,12 @@ class ConnectTab(QWidget):
         elif device_type == "sag":
             self.sag_controller.laser_control(self._on_laser_control_result)
         else:
-            self.log_box.append(f"[ERROR] 未知设备类型。")
+            write_log(self.log_box, f"[ERROR] 未知设备类型。")
             return
     
     def _on_laser_control_result(self, success, msg):
         """激光器控制结果回调"""
         if success:
-            self.log_box.append(f"[DONE] {msg}")
+            write_log(self.log_box, f"[INFO] {msg}")
         else:
-            self.log_box.append(f"[ERROR] {msg}")
+            write_log(self.log_box, f"[ERROR] {msg}")
