@@ -162,22 +162,21 @@ class ConnectTab(QWidget):
         row2 = QHBoxLayout()
         
         self.arm_pos_spin = QDoubleSpinBox()
-        self.arm_pos_spin.setRange(-5000, 5000) # 范围放大一点
+        self.arm_pos_spin.setRange(-5000, 18500) # 范围放大一点
         self.arm_pos_spin.setSuffix(" (0.1mm)") # 注意原脚本单位是 0.1mm
         self.arm_pos_spin.setDecimals(0)
-        self.arm_pos_spin.setFixedWidth(120)
+        self.arm_pos_spin.setFixedWidth(180)
         
         self.arm_speed_spin = QDoubleSpinBox()
-        self.arm_speed_spin.setRange(0, 1000)
-        self.arm_speed_spin.setValue(50)
+        self.arm_speed_spin.setRange(0, 2000)
+        self.arm_speed_spin.setValue(1000)
         self.arm_speed_spin.setSuffix(" (0.1mm/s)")
-        self.arm_speed_spin.setFixedWidth(120)
+        self.arm_speed_spin.setFixedWidth(180)
         
-        row2.addWidget(QLabel("Pos:"))
+        row2.addWidget(QLabel("位置:"))
         row2.addWidget(self.arm_pos_spin)
-        row2.addWidget(QLabel("Spd:"))
+        row2.addWidget(QLabel("速度:"))
         row2.addWidget(self.arm_speed_spin)
-        
         row2.addStretch()
         
         self.arm_move_btn = QPushButton("移动(move)")
@@ -185,11 +184,22 @@ class ConnectTab(QWidget):
         
         row2.addWidget(self.arm_move_btn)
         v_layout.addLayout(row2)
+
+        row3 = QHBoxLayout()
+        note_label = QLabel("※ 备注: 位置表示距离顶端的距离(单位 0.1mm)")
+        note_label.setStyleSheet("color: #666666; font-size: 12px; font-style: italic;")
+        row3.addWidget(note_label)
+        v_layout.addLayout(row3)
         
+        line2 = QFrame()
+        line2.setFrameShape(QFrame.HLine)
+        line2.setFrameShadow(QFrame.Sunken)
+        v_layout.addWidget(line2)
+
         # --- 第四行: 手动输入命令 (高级功能) ---
         row4 = QHBoxLayout()
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("在此输入原始 cmd2 命令，例如: set_voltage 0 60")
+        self.cmd_input.setPlaceholderText("在此输入原始 cmd2 命令，例如: move 11000 2000")
         self.btn_send_cmd = QPushButton("发送")
         self.btn_send_cmd.setEnabled(False)  # 默认禁用，连接后启用
         
@@ -299,31 +309,13 @@ class ConnectTab(QWidget):
             self.arm_thread.wait()
             self.arm_thread.deleteLater()
             self.arm_thread = None
-            
-    # def closeEvent(self, event):
-    #     if self.arm_thread and self.arm_thread.isRunning():
-    #         write_log(self.log_box, "[GUI] 正在关闭机械臂线程...")
-    #         self.arm_thread.stop()
-    #         self.arm_thread.wait()
-    #         self.arm_thread.deleteLater()
-    #         self.arm_thread = None
-    #     event.accept()
+
         
     def toggle_arm_thread(self):
         """处理 开启/关闭 线程"""
         # 如果线程存在且正在运行 -> 停止它
         if self.arm_thread and self.arm_thread.isRunning():
-            write_log(self.log_box, "[GUI] 正在停止机械臂线程...")
-            self.arm_thread.stop()
-            self.arm_thread.deleteLater()
-            self.arm_thread = None
-            
-            # 更新 UI
-            self.arm_connect_btn.setText("连接 (启动线程)")
-            self.arm_status_label.setText("已停止")
-            self.arm_status_label.setStyleSheet("background-color: #ffe6e6; color: red;")
-            self.arm_move_btn.setEnabled(False)
-            self.arm_reset_btn.setEnabled(False)
+            write_log(self.log_box, "[INFO] 机械臂已连接， 请勿重复连接！")
             
         else:
             # 启动线程
