@@ -3,3 +3,5 @@ hdf5storage
 matplotlib
 numpy
 scipy
+cmd2
+msgpack
