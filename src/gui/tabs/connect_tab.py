@@ -17,12 +17,13 @@ from gui.func import write_log
 class ConnectTab(QWidget):
     """连接与参数设置界面（仅负责 UI）"""
 
-    def __init__(self):
+    def __init__(self, log_box):
         super().__init__()
         self.settings = QSettings("ScanGUI", "DetectorApp")
         self.cor_controller = DetectorController()
         self.sag_controller = DetectorController()
         self.arm_thread = None  # 机械臂控制器，稍后初始化
+        self.log_box = log_box
         self.initUI()
         self.bind_events()
         
@@ -245,26 +246,7 @@ class ConnectTab(QWidget):
         arm_group_layout.addWidget(arm_group) # 添加到同一排
         main_layout.addLayout(arm_group_layout)
         
-        
-        # 5. === 日志框 (作为下半部分) ===
-        log_group = QGroupBox("输出日志")
-        log_group.setStyleSheet(self._get_group_style())
-        
-        # 创建一个垂直布局给 GroupBox 内部使用
-        log_inner_layout = QVBoxLayout()
-        log_inner_layout.setContentsMargins(10, 25, 10, 10) # 上边距留大一点给标题
-
-        self.log_box = QTextEdit()
-        self.log_box.setPlaceholderText("输出日志...")
-        self.log_box.setReadOnly(True)
-        
-        log_inner_layout.addWidget(self.log_box)
-        
-        # 将内部布局应用到 GroupBox
-        log_group.setLayout(log_inner_layout)
-
-        # 6. 将 GroupBox 加入主布局，并设置 stretch=1 (让它占据剩余所有垂直空间)
-        main_layout.addWidget(log_group, stretch=1)
+        main_layout.addStretch(1)  # ✅ 关键
 
         # 7. 应用总布局
         self.setLayout(main_layout)
@@ -298,10 +280,8 @@ class ConnectTab(QWidget):
         
         # 2. 移动指令
         self.arm_move_btn.clicked.connect(self.cmd_move)
-        
-        # 3. 其他指令
-        # self.arm_reset_btn.clicked.connect(lambda: self.send_cmd("reset_motor_error"))
-    
+
+
     def shutdown(self):
         if self.arm_thread and self.arm_thread.isRunning():
             write_log(self.log_box, "[GUI] 正在关闭机械臂线程...")

@@ -8,13 +8,19 @@ from PySide6.QtWidgets import (
     QPushButton, QFileDialog
 )
 from PySide6.QtCore import Qt, QSettings
+from gui.func import write_log
 
 class AcquireTab(QWidget):
     """采集参数设置与控制界面"""
 
-    def __init__(self):
+    def __init__(self, cor_ctrl, sag_ctrl, arm_thread, log_box):
         super().__init__()
         self.settings = QSettings("ScanGUI", "DetectorApp")
+        self.cor_ctrl = cor_ctrl
+        self.sag_ctrl = sag_ctrl
+        self.arm_thread = arm_thread
+        self.log_box = log_box
+        
         self.initUI()
         self.bind_events()
         # 初始化界面数值逻辑
@@ -214,15 +220,15 @@ class AcquireTab(QWidget):
         # 3. 采集执行模块
         main_layout.addWidget(self._create_execution_block())
 
-        # 4. 系统日志
-        log_group = QGroupBox("系统日志")
-        log_group.setStyleSheet(self._get_group_style())
-        log_v = QVBoxLayout()
-        self.log_box = QTextEdit()
-        self.log_box.setReadOnly(True)
-        log_v.addWidget(self.log_box)
-        log_group.setLayout(log_v)
-        main_layout.addWidget(log_group, stretch=1)
+        # # 4. 系统日志
+        # log_group = QGroupBox("系统日志")
+        # log_group.setStyleSheet(self._get_group_style())
+        # log_v = QVBoxLayout()
+        # # self.log_box = QTextEdit()
+        # # self.log_box.setReadOnly(True)
+        # log_v.addWidget(self.log_box)
+        # log_group.setLayout(log_v)
+        # main_layout.addWidget(log_group, stretch=1)
 
     def select_directory(self):
         """选择文件夹"""
@@ -294,3 +300,24 @@ class AcquireTab(QWidget):
             self._update_frametime_range(ui) # 初始化范围限制
         
         # 6. 绑定采集
+        self.start_btn.clicked.connect(self.start_acquisition)
+        
+    def start_acquisition(self):
+        if self.cor_ctrl is None or self.cor_ctrl.det is None or self.cor_ctrl.offline:
+            write_log(self.log_box, "[Error] 错误：未连接正位[COR]探测器，无法采集！")
+            return
+        
+        if self.sag_ctrl is None or self.sag_ctrl.det is None or self.sag_ctrl.offline:
+            write_log(self.log_box, "[Error] 错误：未连接侧位[SAG]探测器，无法采集！")
+            return
+        
+        if self.arm_thread is None or not self.arm_thread.isRunning():
+            write_log(self.log_box, "[Error] 错误：机械臂未连接，无法采集！")
+            return
+        
+        write_log(self.log_box, "[Info] 开始采集...")
+        
+        # 第一步, 设置 机械臂参数 和 电压电流参数
+        
+        
+        
