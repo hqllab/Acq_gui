@@ -1,12 +1,33 @@
 '''
 Author: LiuSheng
 Date: 2025-11-06 16:12:14
-LastEditTime: 2025-11-06 16:12:17
+LastEditTime: 2026-01-12 11:26:51
 Description: 
 '''
 # core/detector_controller.py
+from matplotlib.pylab import det
 from core.det_interface import DetInterface
 import threading
+
+
+default_config = {
+    "position_configs": [
+        {"pos": 0, "en": 1, "polarity": 0, "clearPos": 1, "zeroShift": 0},
+        {"pos": 1, "en": 0, "polarity": 0, "clearPos": 1, "zeroShift": 0}
+    ],
+    "power_switches": {
+        "laser1": 0,
+        "laser0": 0,
+        "opa": 1,
+        "vbias": 1,
+        "vcc12": 1,
+        "vdd25": 1
+    },
+    "detector_params": {
+        "reg_addr_0x0018": 0x600003FF
+    },
+    "detector_win_num": 4
+}
 
 
 class DetectorController:
@@ -17,19 +38,20 @@ class DetectorController:
         self.offline = True
 
     # ---------------------------------------------------------
-    def connect(self, ip: str, port: int, callback=None):
+    def connect(self, ip: str, port: int, status_label, callback=None):
         """连接设备 (异步执行)"""
         def run():
             try:
                 self.det = DetInterface(ip, port)
+                self.init_config()
                 self.offline = False
                 if callback:
-                    callback(True, f"成功连接到 {ip}")
+                    callback(True, status_label, f"成功连接到 {ip} 并初始化配置。")
             except Exception as e:
                 self.det = None
                 self.offline = True
                 if callback:
-                    callback(False, f"连接失败：{e}")
+                    callback(False, status_label, f"连接失败：{e}")
         threading.Thread(target=run, daemon=True).start()
 
     # ---------------------------------------------------------
@@ -42,29 +64,36 @@ class DetectorController:
 
         def run():
             try:
-                status = self.det.get_status()
+                info = self.det.get_status()
                 if callback:
-                    callback(True, status)
+                    callback(True, info)
             except Exception as e:
                 callback(False, f"状态获取失败: {e}")
         threading.Thread(target=run, daemon=True).start()
 
     # ---------------------------------------------------------
-    def apply_config(self, pos_cfgs, power_dict, det_params, callback=None):
+    def init_config(self):
         """应用参数配置 (异步)"""
         if self.offline or not self.det:
-            if callback:
-                callback(False, "离线模式无法应用参数。")
             return
-
-        def run():
-            try:
-                self.det.set_position_config(pos_cfgs)
-                self.det.set_power_switch(power_dict)
-                self.det.update_detector_params(det_params)
-                if callback:
-                    callback(True, "所有参数已成功应用。")
-            except Exception as e:
-                if callback:
-                    callback(False, f"参数应用失败: {e}")
-        threading.Thread(target=run, daemon=True).start()
+        try:
+            self.det.set_position_config(default_config["position_configs"])
+            self.det.set_power_switch(default_config["power_switches"])
+            self.det.update_detector_params(default_config["detector_params"])
+        except Exception as e:
+            print(f"初始化配置失败: {e}")
+    
+    def laser_control(self, callback=None):
+        """控制激光器开关"""
+        if self.offline or not self.det:
+            callback(False, "离线模式无法控制激光器。")
+            return
+        try:
+            default_config["power_switches"]["laser1"] = 1 - default_config["power_switches"]["laser1"]
+            default_config["power_switches"]["laser0"] = 1 - default_config["power_switches"]["laser0"]
+            self.det.set_power_switch(default_config["power_switches"])
+            if callback:
+                callback(True, "激光器开关已切换。")
+        except Exception as e:
+            if callback:
+                callback(False, f"激光器控制失败: {e}")

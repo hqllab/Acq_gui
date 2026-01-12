@@ -1,4 +1,6 @@
 # gui/tabs/connect_tab.py
+
+import json
 from turtle import title
 from unicodedata import name
 from PySide6.QtWidgets import (
@@ -19,6 +21,7 @@ class ConnectTab(QWidget):
         self.cor_controller = DetectorController()
         self.sag_controller = DetectorController()
         self.initUI()
+        self.bind_events()
     
     def _create_device_block(self, title, ip_key, port_key, default_ip, default_port):
         """
@@ -130,7 +133,7 @@ class ConnectTab(QWidget):
          self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn, self.sag_clear_btn) = self._create_device_block(
             "侧位探测器 (Sagittal)", "sag_ip", "sag_port", "10.20.99.2", "50099"
         )
-
+        
         # 3. 将两个设备块加入 "devices_layout" (水平布局)
         devices_layout.addWidget(cor_group)
         devices_layout.addWidget(sag_group)
@@ -140,7 +143,7 @@ class ConnectTab(QWidget):
 
         # 5. === 日志框 (作为下半部分) ===
         self.log_box = QTextEdit()
-        self.log_box.setPlaceholderText("系统日志...")
+        self.log_box.setPlaceholderText("输出日志...")
         self.log_box.setReadOnly(True)
         # 设置一个合适的高度，或者不设置让它自适应
         self.log_box.setFixedHeight(150) 
@@ -150,46 +153,89 @@ class ConnectTab(QWidget):
         # 6. 应用总布局
         self.setLayout(main_layout)
         
+    def bind_events(self):
+        # 绑定事件，使用 lambda 将具体的控件传给处理函数
+        self.sag_btn.clicked.connect(
+            lambda: self.connect_device("sag")
+        )
+        self.cor_btn.clicked.connect(
+            lambda: self.connect_device("cor")
+        )
         
+        self.cor_get_info_btn.clicked.connect(
+            lambda: self.get_det_info("cor")
+        )
+        self.sag_get_info_btn.clicked.connect(
+            lambda: self.get_det_info("sag")
+        )
         
+        self.cor_laser_btn.clicked.connect(
+            lambda: self.laser_control("cor")
+        )
+        self.sag_laser_btn.clicked.connect(
+            lambda: self.laser_control("sag")
+        )
+        
+    
     # ---------------------------------------------------------
     def connect_device(self, device_type):
         if device_type == "cor":
             ip = self.cor_ip_edit.text().strip()
             port = int(self.cor_port_edit.text().strip())
+            status_label = self.cor_status_label
             if not ip:
                 self.log_box.append("[ERROR] [正位COR网口] 地址不能为空。")
                 return
             self.settings.setValue(f"last_cor_ip", ip)
             self.settings.sync()
             self.log_box.append(f"[INFO] 正位COR: {ip}:{port} 正在连接 ...")
-            self.cor_controller.connect(ip, port, self._on_connect_result)
+            self.cor_controller.connect(ip, port, status_label, self._on_connect_result)
             
+
         elif device_type == "sag":
             ip = self.sag_ip_edit.text().strip()
             port = int(self.sag_port_edit.text().strip())
+            status_label = self.sag_status_label
             if not ip:
                 self.log_box.append("[ERROR] [侧位网口] 地址不能为空。")
                 return
             self.settings.setValue(f"last_sag_ip", ip)
             self.settings.sync()
             self.log_box.append(f"[INFO] 侧位SAG: {ip}:{port} 正在连接 ...")
-            self.sag_controller.connect(ip, port, self._on_connect_result)
+            self.sag_controller.connect(ip, port, status_label, self._on_connect_result)
         else:
             self.log_box.append(f"[ERROR] 未知设备类型。")
             return
 
-    def _on_connect_result(self, success, msg):
-        self.status_label.setText(f"当前状态：{'已连接' if success else '离线模式'}")
+    def _on_connect_result(self, success, status_label, msg):
+        if success:
+            text = "已连接"
+            # 绿色方案: 浅绿背景 + 深绿文字
+            style = "background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 5px; border-radius: 3px; font-weight: bold;"
+        else:
+            text = "离线模式"
+            # 橙色方案: 浅橙背景 + 深橙/褐文字
+            style = "background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 5px; border-radius: 3px; font-weight: bold;"
+
+        status_label.setText(text)
+        status_label.setStyleSheet(style)
+        
+        # 记录日志
         self.log_box.append(f"[{'INFO' if success else 'ERROR'}] {msg}")
 
     # ---------------------------------------------------------
-    def get_status(self):
-        self.log_box.append("[INFO] 正在读取状态...")
-        self.controller.get_status(self._on_status_result)
+    def get_det_info(self, device_type):
+        if device_type == "cor":
+            self.log_box.append("[INFO] 正在读取[正位COR]状态...")
+            self.cor_controller.get_status(self._on_status_result)
+        elif device_type == "sag":
+            self.log_box.append("[INFO] 正在读取[侧位SAG]状态...")
+            self.sag_controller.get_status(self._on_status_result)
+        else:
+            self.log_box.append(f"[ERROR] 未知设备类型。")
+            return
 
     def _on_status_result(self, success, result):
-        import json
         """状态结果回调"""
         if success:
             # 在日志框中逐行输出状态
@@ -200,23 +246,18 @@ class ConnectTab(QWidget):
         else:
             self.log_box.append(f"[ERROR] 获取状态失败：{result}")
 
-    # ---------------------------------------------------------
-    def apply_all_params(self):
-        """从 UI 收集参数并应用"""
-        pos_cfgs = [
-            {
-                "pos": c["pos"].value(),
-                "en": int(c["en"].text() or 0),
-                "polarity": int(c["polarity"].text() or 0),
-                "clearPos": int(c["clearPos"].text() or 0),
-                "zeroShift": c["zeroShift"].value(),
-            } for c in self.pos_params
-        ]
-        power_dict = {k: int(v.text() or 0) for k, v in self.power_inputs.items()}
-        det_params = {k: v.value() for k, v in self.det_inputs.items()}
-
-        self.log_box.append("[INFO] 正在应用参数配置 ...")
-        self.controller.apply_config(pos_cfgs, power_dict, det_params, self._on_apply_result)
-
-    def _on_apply_result(self, success, msg):
-        self.log_box.append(f"[{'DONE' if success else 'ERROR'}] {msg}")
+    def laser_control(self, device_type):
+        if device_type == "cor":
+            self.cor_controller.laser_control(self._on_laser_control_result)
+        elif device_type == "sag":
+            self.sag_controller.laser_control(self._on_laser_control_result)
+        else:
+            self.log_box.append(f"[ERROR] 未知设备类型。")
+            return
+    
+    def _on_laser_control_result(self, success, msg):
+        """激光器控制结果回调"""
+        if success:
+            self.log_box.append(f"[DONE] {msg}")
+        else:
+            self.log_box.append(f"[ERROR] {msg}")
