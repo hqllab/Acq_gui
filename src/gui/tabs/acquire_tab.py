@@ -292,3 +292,5 @@ class AcquireTab(QWidget):
             ui["sid"].setValue(1000)
             ui["sdd"].setValue(1400)
             self._update_frametime_range(ui) # 初始化范围限制
+        
+        # 6. 绑定采集

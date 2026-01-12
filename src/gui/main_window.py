@@ -9,9 +9,9 @@ Description: 主窗口类，包含连接、采集、绘图三个tab页
 from PySide6.QtWidgets import QMainWindow, QTabWidget
 from gui.tabs.connect_tab import ConnectTab
 from gui.tabs.acquire_tab import AcquireTab
-from gui.tabs.recon_acquire_tab import ReconAcquireTab
+# from gui.tabs.recon_acquire_tab import ReconAcquireTab
 
-from gui.tabs.analysis_tab import AnalysisTab
+# from gui.tabs.analysis_tab import AnalysisTab
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -20,7 +20,6 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         self.connect_tab = ConnectTab()
-        # self.cali_acquire_tab = AcquireTab(cor_ctrl=self.connect_tab.cor_controller, sag_ctrl=self.connect_tab.sag_controller)
         self.cali_acquire_tab = AcquireTab()
         # self.recon_acquire_tab = ReconAcquireTab(det_ctrl=self.connect_tab.controller)
         # self.analysis_tab = AnalysisTab()  
