@@ -33,9 +33,7 @@ def create_tabs(log_box):
 
     connect_tab = ConnectTab(log_box=log_box)
     acquire_tab = AcquireTab(
-        cor_ctrl=connect_tab.cor_controller,
-        sag_ctrl=connect_tab.sag_controller,
-        arm_thread=connect_tab.arm_thread,
+        connect_tab_instance = connect_tab,
         log_box=log_box
     )
 

@@ -45,10 +45,10 @@ class SLZWorkerThread(QThread):
                 thread_instance.sig_log.emit(str(msg))
 
             def pfeedback(self, msg: str = '', *, end: str = '\n') -> None:
-                thread_instance.sig_log.emit(f"[反馈] {msg}")
+                thread_instance.sig_log.emit(f"[INFO] {msg}")
 
             def perror(self, msg: str = '', *, end: str = '\n') -> None:
-                thread_instance.sig_log.emit(f"[错误] {msg}")
+                thread_instance.sig_log.emit(f"[ERROR] {msg}")
 
             def async_alert(self, msg: str = '', *, end: str = '\n') -> None:
                 thread_instance.sig_log.emit(f"[异步] {msg}")
@@ -61,10 +61,10 @@ class SLZWorkerThread(QThread):
         try:
             self.slz_app = InterceptedSLZ()
         except Exception as e:
-            self.sig_log.emit(f"[系统错误] 初始化失败: {e}")
+            self.sig_log.emit(f"[Error] 初始化失败: {e}")
             return
 
-        self.sig_log.emit("[系统] 机械臂控制线程已就绪，等待指令...")
+        self.sig_log.emit("[INFO] 机械臂控制线程已就绪，等待指令...")
 
         # 3. 循环等待指令 (消费者循环)
         while self._is_running:
@@ -88,7 +88,7 @@ class SLZWorkerThread(QThread):
         # 线程结束前的清理
         if self.slz_app:
             self.slz_app.client.disconnect()
-        self.sig_log.emit("[系统] 线程已停止。")
+        self.sig_log.emit("[INFO] 线程已停止。")
 
     def stop(self):
         """停止线程"""

@@ -96,14 +96,14 @@ def _pixCalibration(tdata, calFile: str):
     return cal_cnt
 
 def _save(name, data):
-    real_name = f"{name}.mat"
-    if os.path.exists(real_name):
-        y = input("文件存在是否覆盖")
-        if y == 'y' or y == 'Y':
-            os.remove(real_name)
-        else:
-            logging.warning("跳过保存")
-            return
+    real_name = name
+    # if os.path.exists(real_name):
+    #     y = input("文件存在是否覆盖")
+    #     if y == 'y' or y == 'Y':
+    #         os.remove(real_name)
+    #     else:
+    #         logging.warning("跳过保存")
+    #         return
     savemat(real_name, data, oned_as="column")
 
 def saveHist(data, name, calFile: str | None = ""):
@@ -116,14 +116,14 @@ def saveHist(data, name, calFile: str | None = ""):
             "data": np.transpose(data["data"], (2, 1, 0))
         }
     }
-    plt.figure()
-    plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
-    plt.colorbar()
-    plt.show()
+    # plt.figure()
+    # plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
+    # plt.colorbar()
+    # plt.show()
     _save(name, d)
-    if calFile is not None and calFile != "":
-        d["d"]["data"] = _pixCalibration(d["d"]["data"], calFile)
-        _save(f"{name}_caldata", d)
+    # if calFile is not None and calFile != "":
+    #     d["d"]["data"] = _pixCalibration(d["d"]["data"], calFile)
+    #     _save(f"{name}_caldata", d)
 
 def saveThr(data, name):
     d = {
@@ -135,10 +135,10 @@ def saveThr(data, name):
             "data": np.transpose(data["data"].reshape((data["data"].shape[0], -1, data["data"].shape[3])) , (2, 1, 0))
         }
     }
-    plt.figure()
-    plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
-    plt.colorbar()
-    plt.show()
+    # plt.figure()
+    # plt.imshow(d["d"]["data"].sum(axis=0), aspect="auto")
+    # plt.colorbar()
+    # plt.show()
     _save(name, d)
 
 def saveHistConv(name, calFile: str | None = ""):

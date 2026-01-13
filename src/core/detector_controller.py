@@ -8,8 +8,8 @@ Description:
 # from core.Det.Det import Det
 # from core.Det.DetData import DetData
 from core.det_interface import DetInterface
-from core.AcqFunc.AcqFunc import histAcqNoMove
-from core.AcqFunc.AcqFunc import saveHist
+from core.AcqFunc.AcqFunc import histAcqNoMove, thrAcqNoMove
+from core.AcqFunc.AcqFunc import saveHist, saveThr
 import threading
 
 
@@ -103,7 +103,6 @@ class DetectorController:
                 callback(False, f"激光器控制失败: {e}")
     
     def start_acquire(self, acq_mode, win_range, time, interval, filepath, callback=None):
-        print('start_acquire')
         """启动数据采集"""
         if self.offline or not self.det:
             callback(False, "离线模式无法启动采集。")
@@ -111,10 +110,20 @@ class DetectorController:
         try:
             if acq_mode == "spectral":
                 self.det.det.setWinRange(0, win_range[0], win_range[1])
-                data = histAcqNoMove(self.det.det, cnt=None, time=4, interval = int(400 * 10))
-                # data = histAcqNoMove(self.det.det, cnt=None, time=time, interval = int(interval * 10))
+                # data = histAcqNoMove(self.det.det, cnt=None, time=4, interval = int(400 * 10))
+                interval = int(interval * 10)
+                print(f"time: {time}, interval: {interval}")
+                data = histAcqNoMove(self.det.det, cnt=None, time=time, interval = interval)
                 saveHist(data, filepath, None)
-            
+
+            elif acq_mode == "binned":
+                for i,win in enumerate(win_range):
+                    self.det.det.setWinRange(i, win[0], win[1])
+                interval = int(interval * 10)
+                print(f"time: {time}, interval: {interval}")
+                data = thrAcqNoMove(self.det.det, cnt=None, time=time, interval = interval)
+                saveThr(data, filepath)
+                
             
             if callback:
                 callback(True, "数据采集已启动。")
