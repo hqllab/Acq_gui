@@ -18,15 +18,15 @@ class AcquireTab(QWidget):
 
     def __init__(self, cor_ctrl, sag_ctrl, arm_thread, log_box):
         super().__init__()
-        self.settings = QSettings("ScanGUI", "DetectorApp")
+        # self.settings = QSettings("ScanGUI", "DetectorApp")
         self.cor_ctrl = cor_ctrl
         self.sag_ctrl = sag_ctrl
-        self.arm_thread = SLZWorkerThread()    
-        # 【绑定信号】：把线程里的日志，打印到 log_box
-        self.arm_thread.sig_log.connect(lambda msg: write_log(self.log_box, msg))
+        self.arm_thread = arm_thread    
+        # # 【绑定信号】：把线程里的日志，打印到 log_box
+        # self.arm_thread.sig_log.connect(lambda msg: write_log(self.log_box, msg))
         
-        # 启动！
-        self.arm_thread.start()
+        # # 启动！
+        # self.arm_thread.start()
 
         self.log_box = log_box
         

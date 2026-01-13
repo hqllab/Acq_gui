@@ -3,12 +3,10 @@
 import json
 from turtle import title
 from unicodedata import name
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QPushButton, QTextEdit, QLabel, QLineEdit,
-    QDoubleSpinBox, QFrame
-)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Qt, QSettings
+
+from .connect_tab_helper import create_detector_block, create_arm_blocks
 from core.detector_controller import DetectorController
 from core.slz_controller import SLZWorkerThread
 from gui.func import write_log
@@ -19,198 +17,14 @@ class ConnectTab(QWidget):
 
     def __init__(self, log_box):
         super().__init__()
-        self.settings = QSettings("ScanGUI", "DetectorApp")
+        # self.settings = QSettings("ScanGUI", "DetectorApp")
         self.cor_controller = DetectorController()
         self.sag_controller = DetectorController()
         self.arm_thread = SLZWorkerThread()
         self.log_box = log_box
         self.initUI()
         self.bind_events()
-        
-    
-    def _get_group_style(self):
-        """统一获取 GroupBox 样式，保持与 ConnectTab 一致"""
-        return "QGroupBox { font-weight: bold; font-size: 14px; border: 1px solid gray; border-radius: 5px; margin-top: 10px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 3px; }"
-    
-    def _create_device_block(self, title, ip_key, port_key, default_ip, default_port):
-        """
-        创建一个设备的完整控制块
-        返回: (整体布局, IP输入框, 端口输入框, 连接按钮, 状态标签, Info按钮, 激光按钮, Clear按钮)
-        """
-        # --- 外层容器 (GroupBox) ---
-        group_box = QGroupBox(title)
-        # 给 GroupBox 加一点样式，让标题更明显
-        group_box.setStyleSheet(self._get_group_style())
-        
-        # 垂直布局，用于垂直排列 4 行内容
-        v_layout = QVBoxLayout()
-        v_layout.setSpacing(10) # 行间距
-        v_layout.setContentsMargins(15, 25, 15, 15) # 设置边距，上方留出标题位置
 
-        # ====================
-        # 第一行: IP 和 Port
-        # ====================
-        row1 = QHBoxLayout()
-        
-        ip_label = QLabel("网口IP:")
-        ip_edit = QLineEdit()
-        ip_edit.setPlaceholderText("IP")
-        ip_edit.setText(self.settings.value(ip_key, default_ip, type=str))
-        
-        port_label = QLabel("端口:")
-        port_edit = QLineEdit()
-        port_edit.setPlaceholderText("Port")
-        port_edit.setFixedWidth(80)
-        port_edit.setText(self.settings.value(port_key, default_port, type=str))
-
-        row1.addWidget(ip_label)
-        row1.addWidget(ip_edit)
-        row1.addSpacing(20) # 增加间距
-        row1.addWidget(port_label)
-        row1.addWidget(port_edit)
-        
-        v_layout.addLayout(row1)
-
-        # ====================
-        # 第二行: 连接 和 状态
-        # ====================
-        row2 = QHBoxLayout()
-
-        connect_btn = QPushButton("连接")
-        connect_btn.setMinimumHeight(30) # 按钮稍微高一点
-        
-        status_label = QLabel("未连接")
-        status_label.setAlignment(Qt.AlignCenter)
-        status_label.setStyleSheet("background-color: #ffe6e6; color: red; padding: 5px;")
-        
-        row2.addWidget(connect_btn)
-        row2.addWidget(status_label)
-        
-        v_layout.addLayout(row2)
-
-        # ====================
-        # 第三行: 功能 (示例)
-        # ====================
-        row3 = QHBoxLayout()
-        func_label = QLabel("功能区域 (预留):")
-        # 这里可以放你以后需要的其他功能，暂时放个占位
-        # func_btn_example = QPushButton("功能测试")
-        
-        row3.addWidget(func_label)
-        # row3.addWidget(func_btn_example)
-        
-        v_layout.addLayout(row3)
-
-        # ====================
-        # 第四行: 具体指令 (Info, 激光, Clear)
-        # ====================
-        row4 = QHBoxLayout()
-        
-        get_info_btn = QPushButton("查询 Info")
-        laser_btn = QPushButton("激光控制")
-        clear_pos_btn = QPushButton("Clear Pos")
-        clear_pos_btn.setEnabled(False)  # <--- 禁用：变灰，不可点击
-
-        row4.addWidget(get_info_btn)
-        row4.addWidget(laser_btn)
-        row4.addWidget(clear_pos_btn)
-        
-        v_layout.addLayout(row4)
-
-        # --- 完成 ---
-        group_box.setLayout(v_layout)
-        
-        # 返回所有需要交互的控件，方便外部绑定事件
-        return group_box, ip_edit, port_edit, connect_btn, status_label, get_info_btn, laser_btn, clear_pos_btn
-
-    
-    def _create_arm_block(self):
-        """机械臂控制模块"""
-        group_box = QGroupBox("机械臂 (Robotic Arm)")
-        group_box.setStyleSheet(self._get_group_style())
-        v_layout = QVBoxLayout()
-        v_layout.setSpacing(10)
-        v_layout.setContentsMargins(15, 25, 15, 15)
-
-        # --- 第一行: 连接控制 ---
-        row1 = QHBoxLayout()
-        row1.addWidget(QLabel("IP:"))
-        # 默认 IP 与原脚本一致
-        self.arm_ip_edit = QLineEdit("10.20.22.232") 
-        self.arm_ip_edit.setFixedWidth(120)
-        row1.addWidget(self.arm_ip_edit)
-        
-        row1.addStretch()
-        
-        # 这里的连接按钮，我们用命令行的 reconnect / disconnect 命令来实现
-        self.arm_connect_btn = QPushButton("连接")
-        self.arm_connect_btn.setFixedWidth(120) 
-        
-        self.arm_status_label = QLabel("未连接")
-        self.arm_status_label.setAlignment(Qt.AlignCenter)
-        self.arm_status_label.setStyleSheet("background-color: #ffe6e6; color: red; padding: 5px;")
-        
-        row1.addWidget(self.arm_connect_btn)
-        v_layout.addLayout(row1)
-
-        # 分割线
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
-        v_layout.addWidget(line)
-
-        # --- 第二行: 移动参数 ---
-        row2 = QHBoxLayout()
-        
-        self.arm_pos_spin = QDoubleSpinBox()
-        self.arm_pos_spin.setRange(-5000, 18500) # 范围放大一点
-        self.arm_pos_spin.setSuffix(" (0.1mm)") # 注意原脚本单位是 0.1mm
-        self.arm_pos_spin.setDecimals(0)
-        self.arm_pos_spin.setFixedWidth(180)
-        
-        self.arm_speed_spin = QDoubleSpinBox()
-        self.arm_speed_spin.setRange(0, 2000)
-        self.arm_speed_spin.setValue(1000)
-        self.arm_speed_spin.setSuffix(" (0.1mm/s)")
-        self.arm_speed_spin.setFixedWidth(180)
-        
-        row2.addWidget(QLabel("位置:"))
-        row2.addWidget(self.arm_pos_spin)
-        row2.addWidget(QLabel("速度:"))
-        row2.addWidget(self.arm_speed_spin)
-        row2.addStretch()
-        
-        self.arm_move_btn = QPushButton("移动(move)")
-        self.arm_move_btn.setEnabled(False) # 默认开启，是否成功由 cmd2 内部逻辑决定
-        
-        row2.addWidget(self.arm_move_btn)
-        v_layout.addLayout(row2)
-
-        row3 = QHBoxLayout()
-        note_label = QLabel("※ 备注: 位置表示距离顶端的距离(单位 0.1mm)")
-        note_label.setStyleSheet("color: #666666; font-size: 12px; font-style: italic;")
-        row3.addWidget(note_label)
-        v_layout.addLayout(row3)
-        
-        line2 = QFrame()
-        line2.setFrameShape(QFrame.HLine)
-        line2.setFrameShadow(QFrame.Sunken)
-        v_layout.addWidget(line2)
-
-        # --- 第四行: 手动输入命令 (高级功能) ---
-        row4 = QHBoxLayout()
-        self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("在此输入原始 cmd2 命令，例如: move 11000 2000")
-        self.btn_send_cmd = QPushButton("发送")
-        self.btn_send_cmd.setEnabled(False)  # 默认禁用，连接后启用
-        
-        row4.addWidget(self.cmd_input)
-        row4.addWidget(self.btn_send_cmd)
-        v_layout.addLayout(row4)
-
-        group_box.setLayout(v_layout)
-        return group_box
-    
     def initUI(self):
         # 1. 创建总布局：使用 QVBoxLayout (垂直排列)
         #    这样所有的东西是 上-下 结构的
@@ -223,13 +37,13 @@ class ConnectTab(QWidget):
 
         # --- 创建设备块 ---
         (cor_group, self.cor_ip_edit, self.cor_port_edit, self.cor_btn, 
-         self.cor_status_label, self.cor_get_info_btn, self.cor_laser_btn, self.cor_clear_btn) = self._create_device_block(
-            "正位探测器 (Coronal)", "cor_ip", "cor_port", "10.20.77.2", "50077"
+         self.cor_status_label, self.cor_get_info_btn, self.cor_laser_btn) = create_detector_block(
+            "正位探测器 (Coronal)", "10.20.77.2", "50077"
         )
         
         (sag_group, self.sag_ip_edit, self.sag_port_edit, self.sag_btn, 
-         self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn, self.sag_clear_btn) = self._create_device_block(
-            "侧位探测器 (Sagittal)", "sag_ip", "sag_port", "10.20.99.2", "50099"
+         self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn) = create_detector_block(
+            "侧位探测器 (Sagittal)", "10.20.99.2", "50099"
         )
         
         # 3. 将两个设备块加入 "devices_layout" (水平布局)
@@ -240,12 +54,13 @@ class ConnectTab(QWidget):
         main_layout.addLayout(devices_layout)
 
         
-        # 3. 机械臂 (新增模块)
+        # 5. 机械臂 (新增模块)
         arm_group_layout = QVBoxLayout()
-        arm_group = self._create_arm_block()
+        arm_group, self.ip_edit, self.arm_connect_btn, self.arm_status_label, self.arm_pos_spin, self.arm_speed_spin, self.arm_move_btn, self.cmd_input, self.btn_send_cmd = create_arm_blocks("10.20.22.232")
         arm_group_layout.addWidget(arm_group) # 添加到同一排
         main_layout.addLayout(arm_group_layout)
         
+        # 6. 留出空余部分
         main_layout.addStretch(1)  # ✅ 关键
 
         # 7. 应用总布局
@@ -282,13 +97,13 @@ class ConnectTab(QWidget):
         self.arm_move_btn.clicked.connect(self.cmd_move)
 
 
-    def shutdown(self):
-        if self.arm_thread and self.arm_thread.isRunning():
-            write_log(self.log_box, "[GUI] 正在关闭机械臂线程...")
-            self.arm_thread.stop()
-            self.arm_thread.wait()
-            self.arm_thread.deleteLater()
-            self.arm_thread = None
+    # def shutdown(self):
+    #     if self.arm_thread and self.arm_thread.isRunning():
+    #         write_log(self.log_box, "[GUI] 正在关闭机械臂线程...")
+    #         self.arm_thread.stop()
+    #         self.arm_thread.wait()
+    #         self.arm_thread.deleteLater()
+    #         self.arm_thread = None
 
         
     def toggle_arm_thread(self):
@@ -296,11 +111,9 @@ class ConnectTab(QWidget):
         # 如果线程存在且正在运行 -> 停止它
         if self.arm_thread and self.arm_thread.isRunning():
             write_log(self.log_box, "[INFO] 机械臂已连接， 请勿重复连接！")
-            
         else:
             # 启动线程
-            write_log(self.log_box, "[GUI] 正在启动机械臂线程...")
-            self.arm_thread = SLZWorkerThread()
+            write_log(self.log_box, "[INFO] 正在启动机械臂线程...")
             
             # 【绑定信号】：把线程里的日志，打印到 log_box
             self.arm_thread.sig_log.connect(lambda msg: write_log(self.log_box, msg))
@@ -336,11 +149,6 @@ class ConnectTab(QWidget):
             ip = self.cor_ip_edit.text().strip()
             port = int(self.cor_port_edit.text().strip())
             status_label = self.cor_status_label
-            if not ip:
-                write_log(self.log_box, "[ERROR] [正位COR网口] 地址不能为空。")
-                return
-            self.settings.setValue(f"last_cor_ip", ip)
-            self.settings.sync()
             write_log(self.log_box, f"[INFO] 正位COR: {ip}:{port} 正在连接 ...")
             self.cor_controller.connect(ip, port, status_label, self._on_connect_result)
             
@@ -349,11 +157,6 @@ class ConnectTab(QWidget):
             ip = self.sag_ip_edit.text().strip()
             port = int(self.sag_port_edit.text().strip())
             status_label = self.sag_status_label
-            if not ip:
-                write_log(self.log_box, "[ERROR] [侧位网口] 地址不能为空。")
-                return
-            self.settings.setValue(f"last_sag_ip", ip)
-            self.settings.sync()
             write_log(self.log_box, f"[INFO] 侧位SAG: {ip}:{port} 正在连接 ...")
             self.sag_controller.connect(ip, port, status_label, self._on_connect_result)
         else:
