@@ -395,40 +395,40 @@ class AcquireTab(QWidget):
             write_log(self.log_box, "[Error] 未连接侧位[SAG]探测器，无法采集！")
             return
         
-        print(self.arm_thread, self.arm_thread.isRunning(), self.arm_thread.isRunning)
-        if self.arm_thread is None or not self.arm_thread.isRunning():
-            write_log(self.log_box, "[Error] 机械臂未连接，无法采集！")
-            return
+        # print(self.arm_thread, self.arm_thread.isRunning(), self.arm_thread.isRunning)
+        # if self.arm_thread is None or not self.arm_thread.isRunning():
+        #     write_log(self.log_box, "[Error] 机械臂未连接，无法采集！")
+        #     return
         
         write_log(self.log_box, "[Info] 开始采集...")
         
-        # 第一步, 生成script.txt 文件, 设置 机械臂参数 和 电压电流参数
-        cmds = []
-        cmds.append(f"exit_exposure_mode")
-        cmds.append(f"allow_exposure 1")
-        # cmds.append(f"set_max_exposure_time 0 9000")
-        # cmds.append(f"set_max_exposure_time 1 9000")
+        # # 第一步, 生成script.txt 文件, 设置 机械臂参数 和 电压电流参数
+        # cmds = []
+        # cmds.append(f"exit_exposure_mode")
+        # cmds.append(f"allow_exposure 1")
+        # # cmds.append(f"set_max_exposure_time 0 9000")
+        # # cmds.append(f"set_max_exposure_time 1 9000")
         
-        # 球管B -> 正位
-        cmds.append(f"set_voltage 0 {self.sag_ui['kv'].value()}")   
-        cmds.append(f"set_current 0 {self.sag_ui['ma'].value()}")
-        # 球管A -> 侧位
-        cmds.append(f"set_voltage 1 {self.cor_ui['kv'].value()}")
-        cmds.append(f"set_current 1 {self.cor_ui['ma'].value()}")
+        # # 球管B -> 正位
+        # cmds.append(f"set_voltage 0 {self.sag_ui['kv'].value()}")   
+        # cmds.append(f"set_current 0 {self.sag_ui['ma'].value()}")
+        # # 球管A -> 侧位
+        # cmds.append(f"set_voltage 1 {self.cor_ui['kv'].value()}")
+        # cmds.append(f"set_current 1 {self.cor_ui['ma'].value()}")
         
-        # 机械臂位置
-        cmds.append(f"move {int(self.start_pos.value()*10)} {2000}")
-        cmds.append(f"set_exposure_pos {int(self.end_pos.value()*10)} {int(self.speed.value()*10)}")
-        cmds.append(f"enter_exposure_mode")
+        # # 机械臂位置
+        # cmds.append(f"move {int(self.start_pos.value()*10)} {2000}")
+        # cmds.append(f"set_exposure_pos {int(self.end_pos.value()*10)} {int(self.speed.value()*10)}")
+        # cmds.append(f"enter_exposure_mode")
         
-        for cmd in cmds:
-            self.arm_thread.send_command(cmd)
-            time.sleep(0.05)
+        # for cmd in cmds:
+        #     self.arm_thread.send_command(cmd)
+        #     time.sleep(0.05)
             
-            if "move" in cmd:
-                time.sleep(0.4)
+        #     if "move" in cmd:
+        #         time.sleep(0.4)
                 
-            write_log(self.log_box, f"[Info] 发送指令: {cmd}")
+        #     write_log(self.log_box, f"[Info] 发送指令: {cmd}")
         
         cor_acq_mode = "spectral" if self.cor_ui["radio_spectral"].isChecked() else "binned"
         cor_win_range = []

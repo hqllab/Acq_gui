@@ -111,7 +111,7 @@ class DetectorController:
         try:
             if acq_mode == "spectral":
                 self.det.det.setWinRange(0, win_range[0], win_range[1])
-                data = histAcqNoMove(self.det.det, cnt=None, time=4, interval = int(4 * 10))
+                data = histAcqNoMove(self.det.det, cnt=None, time=4, interval = int(400 * 10))
                 # data = histAcqNoMove(self.det.det, cnt=None, time=time, interval = int(interval * 10))
                 saveHist(data, filepath, None)
             
