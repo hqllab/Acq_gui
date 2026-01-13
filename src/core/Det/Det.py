@@ -294,6 +294,34 @@ class Det():
             "maxThr": 511,
             "packagePix": 20,
         }
+        modelRef["HD140"] = {
+            "model": "HD140",
+            "winNum": 4,
+            "pixNum": 256 * 1,
+            "maxThr": 511,
+            "packagePix": 64,
+        }
+        modelRef["HD280"] = {
+            "model": "HD280",
+            "winNum": 4,
+            "pixNum": 256 * 2,
+            "maxThr": 511,
+            "packagePix": 64,
+        }
+        modelRef["HD420"] = {
+            "model": "HD420",
+            "winNum": 4,
+            "pixNum": 256 * 3,
+            "maxThr": 511,
+            "packagePix": 64,
+        }
+        modelRef["HD560"] = {
+            "model": "HD560",
+            "winNum": 4,
+            "pixNum": 256 * 4,
+            "maxThr": 511,
+            "packagePix": 64,
+        }
         return modelRef
 
     @staticmethod

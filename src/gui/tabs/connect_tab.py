@@ -22,7 +22,7 @@ class ConnectTab(QWidget):
         self.settings = QSettings("ScanGUI", "DetectorApp")
         self.cor_controller = DetectorController()
         self.sag_controller = DetectorController()
-        self.arm_thread = None  # 机械臂控制器，稍后初始化
+        self.arm_thread = SLZWorkerThread()
         self.log_box = log_box
         self.initUI()
         self.bind_events()
@@ -308,16 +308,13 @@ class ConnectTab(QWidget):
             # 启动！
             self.arm_thread.start()
             
-            # 更新 UI
-            # self.arm_connect_btn.setText("断开 (停止线程)")
-            self.arm_status_label.setText("已连接")
-            self.arm_status_label.setStyleSheet("background-color: #d4edda; color: green;")
-            self.arm_move_btn.setEnabled(True)
-            self.btn_send_cmd.setEnabled(True)
-            
-            # 注意：真实的连接是在线程内部初始化的，
-            # 如果你想支持动态 IP，需要在 start() 之前把 IP 传给线程，
-            # 或者 send_cmd("reconnect")
+        # 更新 UI
+        # self.arm_connect_btn.setText("断开 (停止线程)")
+        self.arm_status_label.setText("已连接")
+        self.arm_status_label.setStyleSheet("background-color: #d4edda; color: green;")
+        self.arm_move_btn.setEnabled(True)
+        self.btn_send_cmd.setEnabled(True)
+        
 
     def send_cmd(self, cmd_str):
         """发送指令的通用方法"""

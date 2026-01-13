@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QPushButton, QFileDialog
 )
 from PySide6.QtCore import Qt, QSettings
+
+from core.slz_controller import SLZWorkerThread
 from gui.func import write_log
 import time
 
@@ -19,9 +21,18 @@ class AcquireTab(QWidget):
         self.settings = QSettings("ScanGUI", "DetectorApp")
         self.cor_ctrl = cor_ctrl
         self.sag_ctrl = sag_ctrl
-        self.arm_thread = arm_thread
+        self.arm_thread = SLZWorkerThread()    
+        # 【绑定信号】：把线程里的日志，打印到 log_box
+        self.arm_thread.sig_log.connect(lambda msg: write_log(self.log_box, msg))
+        
+        # 启动！
+        self.arm_thread.start()
+
         self.log_box = log_box
         
+        # if not self.arm_thread.isRunning():
+        #     self.arm_thread.start()
+
         self.initUI()
         self.bind_events()
         # 初始化界面数值逻辑
@@ -53,7 +64,7 @@ class AcquireTab(QWidget):
 
         self.start_pos = create_double_spin(0.0, "mm")
         self.end_pos = create_double_spin(100.0, "mm")
-        self.speed = create_double_spin(10.0, "mm/s")
+        self.speed = create_double_spin(100.0, "mm/s")
 
         controls_h_layout.addWidget(QLabel("起始位置:"))
         controls_h_layout.addWidget(self.start_pos)
@@ -136,6 +147,7 @@ class AcquireTab(QWidget):
         spectral_layout.addWidget(QLabel("上限:"))
         spectral_max = QSpinBox()
         spectral_max.setRange(0, 120)
+        spectral_max.setValue(100)
         spectral_layout.addWidget(spectral_max)
         acq_v_layout.addWidget(spectral_group)
 
@@ -376,15 +388,16 @@ class AcquireTab(QWidget):
         
     def start_acq_pipeline(self):
         if self.cor_ctrl is None or self.cor_ctrl.det is None or self.cor_ctrl.offline:
-            write_log(self.log_box, "[Error] 错误：未连接正位[COR]探测器，无法采集！")
+            write_log(self.log_box, "[Error] 未连接正位[COR]探测器，无法采集！")
             return
         
         if self.sag_ctrl is None or self.sag_ctrl.det is None or self.sag_ctrl.offline:
-            write_log(self.log_box, "[Error] 错误：未连接侧位[SAG]探测器，无法采集！")
+            write_log(self.log_box, "[Error] 未连接侧位[SAG]探测器，无法采集！")
             return
         
+        print(self.arm_thread, self.arm_thread.isRunning(), self.arm_thread.isRunning)
         if self.arm_thread is None or not self.arm_thread.isRunning():
-            write_log(self.log_box, "[Error] 错误：机械臂未连接，无法采集！")
+            write_log(self.log_box, "[Error] 机械臂未连接，无法采集！")
             return
         
         write_log(self.log_box, "[Info] 开始采集...")
@@ -420,7 +433,8 @@ class AcquireTab(QWidget):
         cor_acq_mode = "spectral" if self.cor_ui["radio_spectral"].isChecked() else "binned"
         cor_win_range = []
         if cor_acq_mode == "spectral":
-            cor_win_range = (self.cor_ui["spectral_min"].value(), self.cor_ui["spectral_max"].value())
+            cor_win_range = (self.cor_ui["spectral"][0].value(), self.cor_ui["spectral"][1].value())
+            # cor_win_range = (self.cor_ui["spectral_min"].value(), self.cor_ui["spectral_max"].value())
         else:
             for min_spin, max_spin in self.cor_ui["binned_spinboxes"]:
                 cor_win_range.append( (min_spin.value(), max_spin.value()) )
@@ -430,15 +444,15 @@ class AcquireTab(QWidget):
         self.cor_ctrl.start_acquire(
             acq_mode = cor_acq_mode,
             win_range = cor_win_range,
-            time = self.cor_ui["time"].value(),
-            interval = self.cor_ui["interval"].value(),
+            time = self.cor_ui["fixed_duration"].value(),
+            interval = self.cor_ui["time"].value(),
             filepath = self.cor_save_path,
         )
         
         sag_acq_mode = "spectral" if self.sag_ui["radio_spectral"].isChecked() else "binned"
         sag_win_range = []
         if sag_acq_mode == "spectral":
-            sag_win_range = (self.sag_ui["spectral_min"].value(), self.sag_ui["spectral_max"].value())
+            sag_win_range = (self.sag_ui["spectral"][0].value(), self.sag_ui["spectral"][1].value())
         else:
             for min_spin, max_spin in self.sag_ui["binned_spinboxes"]:
                 sag_win_range.append( (min_spin.value(), max_spin.value()) )
@@ -448,8 +462,8 @@ class AcquireTab(QWidget):
         self.sag_ctrl.start_acquire(
             acq_mode = sag_acq_mode,
             win_range = sag_win_range,
-            time = self.sag_ui["time"].value(),
-            interval = self.sag_ui["interval"].value(),
+            time = self.sag_ui["fixed_duration"].value(),
+            interval = self.sag_ui["time"].value(),
             filepath = self.sag_save_path,
         )
         

@@ -103,6 +103,7 @@ class DetectorController:
                 callback(False, f"激光器控制失败: {e}")
     
     def start_acquire(self, acq_mode, win_range, time, interval, filepath, callback=None):
+        print('start_acquire')
         """启动数据采集"""
         if self.offline or not self.det:
             callback(False, "离线模式无法启动采集。")
@@ -110,7 +111,8 @@ class DetectorController:
         try:
             if acq_mode == "spectral":
                 self.det.det.setWinRange(0, win_range[0], win_range[1])
-                data = histAcqNoMove(self.det.det, cnt=None, time=time, interval = int(interval * 10))
+                data = histAcqNoMove(self.det.det, cnt=None, time=4, interval = int(4 * 10))
+                # data = histAcqNoMove(self.det.det, cnt=None, time=time, interval = int(interval * 10))
                 saveHist(data, filepath, None)
             
             
@@ -119,3 +121,5 @@ class DetectorController:
         except Exception as e:
             if callback:
                 callback(False, f"采集启动失败: {e}")
+            
+            raise(e)
