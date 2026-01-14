@@ -63,12 +63,12 @@ class AcquireTab(QWidget):
         is_spectral = ui_dict["radio_spectral"].isChecked()
         if is_spectral:
             # 能谱模式: 4.0ms - 100ms
-            ui_dict["time"].setMinimum(4.0)
-            if ui_dict["time"].value() < 4.0:
-                ui_dict["time"].setValue(4.0)
+            ui_dict["frame_time"].setMinimum(4.0)
+            if ui_dict["frame_time"].value() < 4.0:
+                ui_dict["frame_time"].setValue(4.0)
         else:
             # 合并能窗: 0.5ms - 100ms
-            ui_dict["time"].setMinimum(0.5)
+            ui_dict["frame_time"].setMinimum(0.5)
 
     def update_file_preview(self):
         """实时更新文件路径预览"""
@@ -83,7 +83,7 @@ class AcquireTab(QWidget):
             # 逻辑：能谱 -> cali, 合并能窗 -> recon
             mode_tag = "cali" if ui["radio_spectral"].isChecked() else "recon"
             filename = (f"{prefix}_{speed}mmps_{ui['kv'].value()}kv_{ui['ma'].value()}ma_"
-                        f"{mode_tag}_{int(ui['time'].value())}mspf_sid{int(ui['sid'].value())}_{suffix}.mat")
+                        f"{mode_tag}_{int(ui['frame_time'].value())}mspf_sid{int(ui['sid'].value())}_{suffix}.mat")
             return os.path.join(save_dir, filename)
 
         self.cor_save_path = generate_path(self.cor_ui, "cor")
@@ -117,7 +117,7 @@ class AcquireTab(QWidget):
         for ui in [self.cor_ui, self.sag_ui]:
             ui["kv"].valueChanged.connect(self.update_file_preview)
             ui["ma"].valueChanged.connect(self.update_file_preview)
-            ui["time"].valueChanged.connect(self.update_file_preview)
+            ui["frame_time"].valueChanged.connect(self.update_file_preview)
             ui["sid"].valueChanged.connect(self.update_file_preview)
             ui["radio_spectral"].toggled.connect(self.update_file_preview)
 

@@ -16,6 +16,7 @@ from .acquire_tab_helper import create_motion_block, create_channel_panel, creat
 from gui.func import write_log
 import time
 import threading
+from core.motor import MotorDriver
 
 class AcquireTab2(QWidget):
     """采集参数设置与控制界面"""
@@ -23,13 +24,21 @@ class AcquireTab2(QWidget):
     def __init__(self, connect_tab_instance, log_box):
         super().__init__()
         self.cor_ctrl = connect_tab_instance.cor_controller
-
+        self.motor_driver = None
         self.log_box = log_box
+        self.connect_motor_driver()
 
         self.initUI()
         self.bind_events()
         # 初始化界面数值逻辑
         self.update_file_preview()
+
+    def closeEvent(self, event):
+        """窗口关闭时断开连接"""
+        if self.motor_driver:
+            self.motor_driver.close()
+        super().closeEvent(event)
+
 
     def initUI(self):
         main_layout = QVBoxLayout(self)
@@ -42,8 +51,8 @@ class AcquireTab2(QWidget):
         channels_layout = QHBoxLayout()
         self.cor_ui = create_channel_panel("正位 (COR)")
         self.sag_ui = create_channel_panel("侧位 (SAG)")
-        # channels_layout.addWidget(self.cor_ui["panel"])
-        channels_layout.addWidget(self.sag_ui["panel"])
+        channels_layout.addWidget(self.cor_ui["panel"])
+        # channels_layout.addWidget(self.sag_ui["panel"])
         main_layout.addLayout(channels_layout)
         
         # 3. 采集执行模块
@@ -61,12 +70,12 @@ class AcquireTab2(QWidget):
         is_spectral = ui_dict["radio_spectral"].isChecked()
         if is_spectral:
             # 能谱模式: 4.0ms - 100ms
-            ui_dict["time"].setMinimum(4.0)
-            if ui_dict["time"].value() < 4.0:
-                ui_dict["time"].setValue(4.0)
+            ui_dict["frame_time"].setMinimum(4.0)
+            if ui_dict["frame_time"].value() < 4.0:
+                ui_dict["frame_time"].setValue(4.0)
         else:
             # 合并能窗: 0.5ms - 100ms
-            ui_dict["time"].setMinimum(0.5)
+            ui_dict["frame_time"].setMinimum(0.5)
 
     def update_file_preview(self):
         """实时更新文件路径预览"""
@@ -81,7 +90,7 @@ class AcquireTab2(QWidget):
             # 逻辑：能谱 -> cali, 合并能窗 -> recon
             mode_tag = "cali" if ui["radio_spectral"].isChecked() else "recon"
             filename = (f"{prefix}_{speed}mmps_{ui['kv'].value()}kv_{ui['ma'].value()}ma_"
-                        f"{mode_tag}_{int(ui['time'].value())}mspf_sid{int(ui['sid'].value())}_{suffix}.mat")
+                        f"{mode_tag}_{int(ui['frame_time'].value())}mspf_sid{int(ui['sid'].value())}_{suffix}.mat")
             return os.path.join(save_dir, filename)
 
         self.cor_save_path = generate_path(self.cor_ui, "cor")
@@ -115,7 +124,7 @@ class AcquireTab2(QWidget):
         for ui in [self.cor_ui]:
             ui["kv"].valueChanged.connect(self.update_file_preview)
             ui["ma"].valueChanged.connect(self.update_file_preview)
-            ui["time"].valueChanged.connect(self.update_file_preview)
+            ui["frame_time"].valueChanged.connect(self.update_file_preview)
             ui["sid"].valueChanged.connect(self.update_file_preview)
             ui["radio_spectral"].toggled.connect(self.update_file_preview)
 
@@ -129,9 +138,33 @@ class AcquireTab2(QWidget):
         
         # 6. 绑定采集
         self.acq_ui["init_btn"].clicked.connect(self.init_acq_pipeline)
-        self.acq_ui["start_btn"].clicked.connect(self.start_acq_pipeline)
+        # self.acq_ui["start_btn"].clicked.connect(self.start_acq_pipeline)
     
+    def connect_motor_driver(self):
+        """建立持久连接"""
+        target_ip = "10.20.22.56"
+        target_port = 19001
+        
+        if self.motor_driver is None:
+            try:
+                # 假设 MotorDriver 类已经 import 进来
+                self.motor_driver = MotorDriver(target_ip, target_port)
+                write_log(self.log_box, f"[Info] 电机已连接: {target_ip}")
+            except Exception as e:
+                write_log(self.log_box, f"[Error] 电机连接失败: {e}")
+                self.motor_driver = None
+
+
     def init_acq_pipeline(self):
+
+        # 检查电机连接
+        if self.motor_driver is None:
+             # 尝试重连一次
+            self.connect_motor_driver()
+            if self.motor_driver is None:
+                write_log(self.log_box, "[Error] 电机未连接，无法执行！")
+                return
+
         # init
         if self.cor_ctrl is None or self.cor_ctrl.det is None or self.cor_ctrl.offline:
             write_log(self.log_box, "[Error] 未连接正位[COR]探测器，无法采集！")
@@ -141,11 +174,6 @@ class AcquireTab2(QWidget):
             write_log(self.log_box, "[Error] 文件路径已存在！")
             return
         
-        end_pos = self.arm_ui['end_pos'].value()
-        speed = self.arm_ui['speed'].value()
-        control_motor(end_pos, speed)
-
-    def start_acq_pipeline(self):
         cor_acq_mode = "spectral" if self.cor_ui["radio_spectral"].isChecked() else "binned"
         cor_win_range = []
         if cor_acq_mode == "spectral":
@@ -154,60 +182,68 @@ class AcquireTab2(QWidget):
         else:
             for min_spin, max_spin in self.cor_ui["binned_spinboxes"]:
                 cor_win_range.append( (min_spin.value(), max_spin.value()) )
-        if os.path.exists(self.cor_save_path):
-            write_log(self.log_box, f"[Error]: {self.cor_save_path} 文件已存在！")
-            return
-        
-        # sag_acq_mode = "spectral" if self.sag_ui["radio_spectral"].isChecked() else "binned"
-        # sag_win_range = []
-        # if sag_acq_mode == "spectral":
-        #     sag_win_range = (self.sag_ui["spectral"][0].value(), self.sag_ui["spectral"][1].value())
-        # else:
-        #     for min_spin, max_spin in self.sag_ui["binned_spinboxes"]:
-        #         sag_win_range.append( (min_spin.value(), max_spin.value()) )
-        # if os.path.exists(self.sag_save_path):
-        #     write_log(self.log_box, f"[Error]: {self.sag_save_path} 文件已存在！")
-        #     return
 
+        acq_params = {
+            "acq_mode" : cor_acq_mode,
+            "win_range" : cor_win_range,
+            "fixed_duration" : self.cor_ui["fixed_duration"].value(),
+            "interval" : self.cor_ui["frame_time"].value(),
+            "filepath" : self.cor_save_path,
+        }
+
+        print(acq_params)
+
+         # 3. 创建同步信号 (红绿灯)
+        trigger_event = threading.Event()
 
         # =========================================================
-        # 2. 定义线程任务函数
+        # 4. 定义 采集 线程任务 (等待者)
         # =========================================================
-        def run_cor():
+        def run_cor_task():
+            write_log(self.log_box, "[Info] 采集线程就绪，等待电机启动信号...")
+            
+            # 阻塞在这里，直到电机线程调用 set()
+            is_set = trigger_event.wait(timeout=10) # 设置个超时防止死等
+            
+            if not is_set:
+                write_log(self.log_box, "[Error] 等待电机信号超时，采集取消")
+                return
+
+            write_log(self.log_box, "[Info] 信号已收到，开始采集...")
             try:
-                cor_params = {
-                    "acq_mode" : cor_acq_mode,
-                    "win_range" : cor_win_range,
-                    "time" : self.cor_ui["fixed_duration"].value(),
-                    "interval" : self.cor_ui["time"].value(),
-                    "filepath" : self.cor_save_path,
-                }
-                self.cor_ctrl.start_acquire(**cor_params)
+                # 传入提前获取好的参数
+                self.cor_ctrl.start_acquire(**acq_params)
                 write_log(self.log_box, "[Success] 正位(COR) 采集完成")
             except Exception as e:
                 write_log(self.log_box, f"[Error-COR] {e}")
 
-        # def run_sag():
-        #     try:
-        #         sag_params = {
-        #             "acq_mode": sag_acq_mode,
-        #             "win_range": sag_win_range,
-        #             "time" : self.sag_ui["fixed_duration"].value(),
-        #             "interval" : self.sag_ui["time"].value(),
-        #             "filepath" : self.sag_save_path,
-        #         }
-        #         self.sag_ctrl.start_acquire(**sag_params)
-        #         write_log(self.log_box, "[Success] 侧位(SAG) 采集完成")
-        #     except Exception as e:
-        #         write_log(self.log_box, f"[Error-SAG] {e}")
-        #     write_log(self.log_box, f"[INFO]: 采集结束！")
+        # =========================================================
+        # 5. 定义 电机 线程任务 (触发者)
+        # =========================================================
+        def run_motor_task():
+            write_log(self.log_box, "[Info] 电机开始运动流程...")
+            try:
+                end_pos = self.arm_ui['end_pos'].value()
+                speed = self.arm_ui['speed'].value()
+                
+                # 【关键修改】将 self.motor_driver 传入函数
+                control_motor(self.motor_driver, end_pos, speed, start_event=trigger_event)
+                
+                write_log(self.log_box, "[Info] 电机流程结束")
+            except Exception as e:
+                write_log(self.log_box, f"[Error-Motor] {e}")
+                # 如果发生严重通信错误，可能需要置空 driver 迫使下次重连
+                # self.motor_driver = None 
+
+        # =========================================================
+        # 6. 启动双线程
+        # =========================================================
+        # 先启动采集线程让它去 wait
+        t_acq = threading.Thread(target=run_cor_task, daemon=True)
+        t_acq.start()
         
-        write_log(self.log_box, "[Info] 启动双探测器采集线程...")
-    
-        t1 = threading.Thread(target=run_cor)
-        # t2 = threading.Thread(target=run_sag)
-        
-        t1.start()
-        # t2.start()
-        
+        # 再启动电机线程
+        t_motor = threading.Thread(target=run_motor_task, daemon=True)
+        t_motor.start()
+
         

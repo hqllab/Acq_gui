@@ -49,7 +49,7 @@ class DetData():
     def _loopR(self, flag: list[bool]):
         while flag[0]:
             try:
-                (recv, (ip, port)) = self._s.recvfrom(500)
+                (recv, (ip, port)) = self._s.recvfrom(1024)
                 if port != 7493 or len(recv) < 8:
                     continue
                 ((hd, id), data) = (struct.unpack("<4sL", recv[:8]), recv[8:])

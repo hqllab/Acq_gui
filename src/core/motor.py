@@ -169,98 +169,79 @@ class MotorDriver:
 # 主逻辑 (对应 Untitled.m)
 # ==========================================
 
-def control_motor(posend=400, speed=100):
-    # 配置
-    target_ip = "10.20.22.56"
-    target_port = 19001
+# core/motor.py
+# 这里的 MotorDriver 类定义保持不变，省略不写...
+
+def control_motor(driver, posend=400, speed=100, start_event=None):
+    """
+    driver: 已经连接好的 MotorDriver 实例
+    posend: 终点位置
+    speed: 速度
+    start_event: 线程同步事件
+    """
     
-    # 初始化连接
-    driver = MotorDriver(target_ip, target_port)
+    # 【注意】这里不再创建 MotorDriver，也不再 connect
     
     # 参数设置
-    end_pos = posend*100
-    print(f"set end_pos to {end_pos}")
+    end_pos = posend * 100
+    run_speed = speed * 100
     
-    if end_pos > 60000:
-        print("End pos too high, exiting.")
-        driver.close()
-        exit()
-        
-    run_speed = speed*100
-    print(f"set run_speed to {run_speed}")
-    
-    # 计算暂停时间
-    # MATLAB: floor(end_pos / run_speed) + 1.5
+    # 计算暂停时间 (防止除以0报错)
+    if run_speed == 0: run_speed = 100
     pause_time = int(end_pos / run_speed) + 1.5
-    print(f"set pause_time to {pause_time:.1f}")
     
     try:
-        # %% X 轴逻辑
         print("\n--- Processing X Axis ---")
         
-        # 1. 读取 X 电机状态 (0x0401)
-        # [~, ~, ack] = doctr(t, 0x0401, [], false);
+        # 1. 检查状态 (使用传入的 driver)
         ack_data = driver.doctr(0x0401, [], with_succ=False)
         
-        # MATLAB: typecast(uint8(ack{1}(3:end)), 'uint32');
-        # 注意: MATLAB代码里 ack{1} 包含了 id(2bytes), flag(2bytes), data...
-        # 这里的 ack_data 纯粹是 data payload。
-        # MATLAB原文: ack(2) 是 int32。因为 typecast 是转成 uint32 数组。
-        # Python解析: payload 应该是一组 int32
-        
         if len(ack_data) >= 8:
-            # 假设 payload 是 [ErrorCode(4bytes), CurrentPos(4bytes), ...]
-            # MATLAB: ack = typecast(..., 'uint32'). x = double(typecast(ack(2), 'int32'))
-            # 意思是第2个32位整数是位置
             current_x = struct.unpack('<i', ack_data[4:8])[0]
         else:
-            current_x = 0 # 默认值，防错
+            current_x = 0
             
         print(f"Current X: {current_x}")
         
-        # 2. 如果位置偏差大，回原点/复位
+        # 2. 回原点逻辑
         if abs(current_x - 600) > 200:
             print("Resetting X position...")
-            # doctr(t, 0x0402, [2, 600, 1, 10000], true);
             driver.doctr(0x0402, [2, 600, 1, 10000], with_succ=True)
             time.sleep(2)
 
-        # 3. Tube 操作 (0x7F01, 1)
+        # 3. Tube ON
         print("Tube ON")
         driver.doctr(0x7F01, [1]) 
         time.sleep(2)
+        
+        # 4. 发出采集信号
+        if start_event is not None:
+            print(">>> Signal Triggered: Start Acquisition!")
+            start_event.set()
 
-        # 4. 运动到终点
-        # doctr(t, 0x0402, [1, run_speed, 2, end_pos], true);
+        # 5. 运动
         print(f"Moving to {end_pos}...")
         driver.doctr(0x0402, [1, run_speed, 2, end_pos], with_succ=True)
+        
+        # 等待运动结束
         time.sleep(pause_time)
 
-        # 5. Tube 操作 (0x7F01, 0)
+        # 6. Tube OFF
         print("Tube OFF")
         driver.doctr(0x7F01, [0])
-        time.sleep(10)
+        time.sleep(2) # 稍微多等一下
 
-        # 6. 回退
-        # doctr(t, 0x0402, [1, -4000, 1, 900], true);
+        # 7. 回退
         print("Moving back...")
         driver.doctr(0x0402, [1, -4000, 1, 900], with_succ=True)
 
-        # %% Y 轴逻辑 (原代码注释掉了，这里也注释掉)
-        # print("\n--- Processing Y Axis ---")
-        # driver.doctr(0x7F01, [1])
-        # time.sleep(2)
-        # driver.doctr(0x0502, [1, run_speed, 2, end_pos], True)
-        # time.sleep(pause_time)
-        # driver.doctr(0x7F01, [0])
-        # time.sleep(2)
-        # driver.doctr(0x0502, [2, 50600, 1, 10000], True)
-
     except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        driver.close()
-        print("Connection closed.")
+        print(f"An error occurred in motor control: {e}")
+        # 【注意】这里发生了错误也不要 close，除非是网络断开（BrokenPipe），
+        # 否则留给上层决定是否重连。
+        raise e 
+        
+    # 【注意】这里删除了 finally: driver.close()，因为我们要持久化连接
 
 if __name__ == "__main__":
     control_motor()

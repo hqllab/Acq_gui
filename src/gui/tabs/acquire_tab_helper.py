@@ -168,7 +168,7 @@ def create_channel_panel(title):
     # radio_sync.setChecked(True)
     fixed_duration_spin = QDoubleSpinBox()
     fixed_duration_spin.setRange(0.1, 100.0); fixed_duration_spin.setSuffix(" s")
-    fixed_duration_spin.setValue(10.0); fixed_duration_spin.setFixedWidth(90); 
+    fixed_duration_spin.setValue(6.0); fixed_duration_spin.setFixedWidth(90); 
     radio_fixed.setChecked(True)
     
     mode_group = QButtonGroup(main_panel)
@@ -207,7 +207,7 @@ def create_channel_panel(title):
         "binned_spinboxes": binned_spinboxes,
         # "radio_sync": radio_sync, 
         "radio_fixed": radio_fixed,
-        "fixed_duration": fixed_duration_spin, "time": time_spin, 
+        "fixed_duration": fixed_duration_spin, "frame_time": time_spin, 
         "sid": sid_spin, "sdd": sdd_spin
     }
 
