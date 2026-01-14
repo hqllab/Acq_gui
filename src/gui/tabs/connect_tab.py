@@ -38,17 +38,17 @@ class ConnectTab(QWidget):
         # --- 创建设备块 ---
         (cor_group, self.cor_ip_edit, self.cor_port_edit, self.cor_btn, 
          self.cor_status_label, self.cor_get_info_btn, self.cor_laser_btn) = create_detector_block(
-            "正位探测器 (Coronal)", "10.20.77.2", "50077"
+            "正位探测器 (Coronal)", "10.20.22.230", "7494"
         )
         
-        (sag_group, self.sag_ip_edit, self.sag_port_edit, self.sag_btn, 
-         self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn) = create_detector_block(
-            "侧位探测器 (Sagittal)", "10.20.99.2", "50099"
-        )
+        # (sag_group, self.sag_ip_edit, self.sag_port_edit, self.sag_btn, 
+        #  self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn) = create_detector_block(
+        #     "侧位探测器 (Sagittal)", "10.20.99.2", "50099"
+        # )
         
         # 3. 将两个设备块加入 "devices_layout" (水平布局)
         devices_layout.addWidget(cor_group)
-        devices_layout.addWidget(sag_group)
+        # devices_layout.addWidget(sag_group)
 
         # 4. 将 "devices_layout" 加入 "main_layout" (作为上半部分)
         main_layout.addLayout(devices_layout)
@@ -68,9 +68,9 @@ class ConnectTab(QWidget):
         
     def bind_events(self):
         # 绑定事件，使用 lambda 将具体的控件传给处理函数
-        self.sag_btn.clicked.connect(
-            lambda: self.connect_device("sag")
-        )
+        # self.sag_btn.clicked.connect(
+        #     lambda: self.connect_device("sag")
+        # )
         self.cor_btn.clicked.connect(
             lambda: self.connect_device("cor")
         )
@@ -78,16 +78,16 @@ class ConnectTab(QWidget):
         self.cor_get_info_btn.clicked.connect(
             lambda: self.get_det_info("cor")
         )
-        self.sag_get_info_btn.clicked.connect(
-            lambda: self.get_det_info("sag")
-        )
+        # self.sag_get_info_btn.clicked.connect(
+        #     lambda: self.get_det_info("sag")
+        # )
         
         self.cor_laser_btn.clicked.connect(
             lambda: self.laser_control("cor")
         )
-        self.sag_laser_btn.clicked.connect(
-            lambda: self.laser_control("sag")
-        )
+        # self.sag_laser_btn.clicked.connect(
+        #     lambda: self.laser_control("sag")
+        # )
         
         self.arm_connect_btn.clicked.connect(
             lambda: self.toggle_arm_thread()

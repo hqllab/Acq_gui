@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QTabWidget, QTextEdit, QGroupBox, QVBoxLayout
 from gui.tabs.connect_tab import ConnectTab
 from gui.tabs.acquire_tab import AcquireTab
+from gui.tabs.acquire_tab2 import AcquireTab2
 
 def create_log_groupbox():
     log_group = QGroupBox("输出日志(Log)")
@@ -36,8 +37,13 @@ def create_tabs(log_box):
         connect_tab_instance = connect_tab,
         log_box=log_box
     )
+    acquire_tab2 = AcquireTab2(
+        connect_tab_instance = connect_tab,
+        log_box=log_box
+    )
 
     tabs.addTab(connect_tab, "连接")
     tabs.addTab(acquire_tab, "采集")
-    return tabs, connect_tab, acquire_tab
+    tabs.addTab(acquire_tab2, "采集2")
+    return tabs, connect_tab, acquire_tab, acquire_tab2
 

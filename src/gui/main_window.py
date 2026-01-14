@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         # -----------------------------
         # 2. Tabs
         # -----------------------------
-        self.tabs, self.connect_tab, self.acquire_tab = create_tabs(self.log_box)
+        self.tabs, self.connect_tab, self.acquire_tab, self.acquire_tab2 = create_tabs(self.log_box)
 
         # -----------------------------
         # 3. Central layout
