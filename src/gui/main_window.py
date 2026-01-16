@@ -1,7 +1,7 @@
 '''
 Author: LiuSheng
 Date: 2026-01-12 16:41:02
-LastEditTime: 2026-01-13 11:45:19
+LastEditTime: 2026-01-16 13:53:56
 Description: 
 '''
 
@@ -19,12 +19,18 @@ class MainWindow(QMainWindow):
         # -----------------------------
         # 1. 日志 GroupBox + TextEdit
         # -----------------------------
-        self.log_group, self.log_box = create_log_groupbox()
+        log_ui = create_log_groupbox()
+        log_group = log_ui["log_group"]
+        self.log_box = log_ui["log_box"]
         
         # -----------------------------
         # 2. Tabs
         # -----------------------------
-        self.tabs, self.connect_tab, self.acquire_tab, self.acquire_tab2 = create_tabs(self.log_box)
+        tabs_ui = create_tabs(self.log_box)
+        tabs = tabs_ui["tabs"]
+        self.connect_tab = tabs_ui["connect_tab"]
+        # self.acquire_tab = tabs_ui["acquire_tab"]
+        self.acquire_tab2 = tabs_ui["acquire_tab2"]
 
         # -----------------------------
         # 3. Central layout
@@ -33,8 +39,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
-        layout.addWidget(self.tabs, stretch=3)
-        layout.addWidget(self.log_group, stretch=1)  # ✅ 加的是 GroupBox
+        layout.addWidget(tabs, stretch=3)
+        layout.addWidget(log_group, stretch=1)  # ✅ 加的是 GroupBox
 
         self.setCentralWidget(central)
 

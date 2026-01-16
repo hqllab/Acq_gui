@@ -22,8 +22,8 @@ class AcquireTab(QWidget):
     def __init__(self, connect_tab_instance, log_box):
         super().__init__()
         # self.settings = QSettings("ScanGUI", "DetectorApp")
-        self.cor_ctrl = connect_tab_instance.cor_controller
-        self.sag_ctrl = connect_tab_instance.sag_controller
+        self.cor_ctrl = connect_tab_instance.cor_detector
+        self.sag_ctrl = connect_tab_instance.sag_detector
         self.arm_thread = connect_tab_instance.arm_thread 
 
         self.log_box = log_box

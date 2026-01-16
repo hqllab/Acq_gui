@@ -6,7 +6,8 @@ from unicodedata import name
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Qt, QSettings
 
-from .connect_tab_helper import create_detector_block, create_arm_blocks
+from .connect_tab_helper import create_detector_block, create_arm_blocks, create_exam_motor_blocks
+from core.motor import MotorDriver
 from core.detector_controller import DetectorController
 from core.slz_controller import SLZWorkerThread
 from gui.func import write_log
@@ -18,8 +19,11 @@ class ConnectTab(QWidget):
     def __init__(self, log_box):
         super().__init__()
         # self.settings = QSettings("ScanGUI", "DetectorApp")
-        self.cor_controller = DetectorController()
-        self.sag_controller = DetectorController()
+        self.exam_detector = DetectorController()
+        self.exam_motor_driver = MotorDriver()
+        
+        self.cor_detector = DetectorController()
+        self.sag_detector = DetectorController()
         self.arm_thread = SLZWorkerThread()
         self.log_box = log_box
         self.initUI()
@@ -30,28 +34,67 @@ class ConnectTab(QWidget):
         #    这样所有的东西是 上-下 结构的
         main_layout = QVBoxLayout() 
         
-        # 2. 创建一个内部布局用于放置设备：使用 QHBoxLayout (水平排列)
-        #    这样两个设备是 左-右 结构的
-        devices_layout = QHBoxLayout()
-        devices_layout.setSpacing(20)
+        
+        # 实验平台布局
+        # 1. 探测器 + 机械臂控制
+        
+        # --- 创建设备块 ---
+        exam_group_layout = QVBoxLayout()
+        
+        # 实验平台探测器ui
+        (exam_detector_group, self.exam_ip_edit, self.exam_port_edit, self.exam_btn, 
+         self.exam_detector_status_label, self.exam_get_info_btn, self.exam_laser_btn) = create_detector_block(
+            "HD140探测器 (Exam)", "10.20.22.230", "7494"
+        )
+        exam_group_layout.addWidget(exam_detector_group)
+        
+        # 实验平台机械臂ui
+        exam_motor_ui = create_exam_motor_blocks(
+            "实验平台机械臂 (Robotic Arm)", "10.20.22.56", "19001"
+        )
+        
+        # "group_box": group_box,
+        # "ip_edit": ip_edit,
+        # "port_edit": port_edit,
+        # "connect_btn": connect_btn,
+        # "status_label": status_label,
+        # "pos_spin": pos_spin,
+        # "speed_spin": speed_spin,
+        # "move_btn": move_btn
+        self.exam_ip_edit = exam_motor_ui["ip_edit"]
+        self.exam_port_edit = exam_motor_ui["port_edit"]
+        self.exam_connect_btn = exam_motor_ui["connect_btn"]
+        self.exam_status_label = exam_motor_ui["status_label"]
+        self.exam_pos_spin = exam_motor_ui["pos_spin"]
+        self.exam_speed_spin = exam_motor_ui["speed_spin"]
+        self.exam_move_btn = exam_motor_ui["move_btn"]
+        
+        exam_group_layout.addWidget(exam_motor_ui["group_box"])
+        main_layout.addLayout(exam_group_layout)
+        
+        
+        # 2. 创建一个内部布局用于放置设备2：使用 QHBoxLayout (水平排列)
+        bone_devices_layout = QHBoxLayout()
+        bone_devices_layout.setSpacing(20)
 
         # --- 创建设备块 ---
         (cor_group, self.cor_ip_edit, self.cor_port_edit, self.cor_btn, 
          self.cor_status_label, self.cor_get_info_btn, self.cor_laser_btn) = create_detector_block(
-            "正位探测器 (Coronal)", "10.20.22.230", "7494"
+            "正位探测器 (Coronal)", "10.20.77.2", "50077"
         )
         
-        # (sag_group, self.sag_ip_edit, self.sag_port_edit, self.sag_btn, 
-        #  self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn) = create_detector_block(
-        #     "侧位探测器 (Sagittal)", "10.20.99.2", "50099"
-        # )
-        
+        (sag_group, self.sag_ip_edit, self.sag_port_edit, self.sag_btn, 
+         self.sag_status_label, self.sag_get_info_btn, self.sag_laser_btn) = create_detector_block(
+            "侧位探测器 (Sagittal)", "10.20.99.2", "50099"
+        )
+         
+         
         # 3. 将两个设备块加入 "devices_layout" (水平布局)
-        devices_layout.addWidget(cor_group)
-        # devices_layout.addWidget(sag_group)
+        bone_devices_layout.addWidget(cor_group)
+        bone_devices_layout.addWidget(sag_group)
 
         # 4. 将 "devices_layout" 加入 "main_layout" (作为上半部分)
-        main_layout.addLayout(devices_layout)
+        main_layout.addLayout(bone_devices_layout)
 
         
         # 5. 机械臂 (新增模块)
@@ -68,26 +111,37 @@ class ConnectTab(QWidget):
         
     def bind_events(self):
         # 绑定事件，使用 lambda 将具体的控件传给处理函数
-        # self.sag_btn.clicked.connect(
-        #     lambda: self.connect_device("sag")
-        # )
+        self.exam_btn.clicked.connect(
+            lambda: self.connect_device("exam")
+        )
+        self.exam_get_info_btn.clicked.connect(
+            lambda: self.get_det_info("exam")
+        )
+        self.exam_laser_btn.clicked.connect(
+            lambda: self.laser_control("exam")
+        )
+        
+        self.exam_connect_btn.clicked.connect(
+            lambda: self.connect_device("exam")
+        )
+        
         self.cor_btn.clicked.connect(
-            lambda: self.connect_device("cor")
+            lambda: self.connect_motor()
         )
         
         self.cor_get_info_btn.clicked.connect(
             lambda: self.get_det_info("cor")
         )
-        # self.sag_get_info_btn.clicked.connect(
-        #     lambda: self.get_det_info("sag")
-        # )
+        self.sag_get_info_btn.clicked.connect(
+            lambda: self.get_det_info("sag")
+        )
         
         self.cor_laser_btn.clicked.connect(
             lambda: self.laser_control("cor")
         )
-        # self.sag_laser_btn.clicked.connect(
-        #     lambda: self.laser_control("sag")
-        # )
+        self.sag_laser_btn.clicked.connect(
+            lambda: self.laser_control("sag")
+        )
         
         self.arm_connect_btn.clicked.connect(
             lambda: self.toggle_arm_thread()
@@ -96,18 +150,19 @@ class ConnectTab(QWidget):
         # 2. 移动指令
         self.arm_move_btn.clicked.connect(self.cmd_move)
 
-
-    # def shutdown(self):
-    #     if self.arm_thread and self.arm_thread.isRunning():
-    #         write_log(self.log_box, "[GUI] 正在关闭机械臂线程...")
-    #         self.arm_thread.stop()
-    #         self.arm_thread.wait()
-    #         self.arm_thread.deleteLater()
-    #         self.arm_thread = None
-
+    def connect_motor(self):
+        """连接实验平台机械臂"""
+        ip = self.exam_ip_edit.text().strip()
+        port = int(self.exam_port_edit.text().strip())
+        status_label = self.exam_status_label
+        try:
+            self.exam_motor_driver.connect(ip, port, status_label)
+            write_log(self.log_box, "[INFO] 机械臂连接成功")
+        except Exception as e:
+            write_log(self.log_box, f"[ERROR] 连接机械臂失败: {e}")
         
     def toggle_arm_thread(self):
-        """处理 开启/关闭 线程"""
+        """开启 线程"""
         # 如果线程存在且正在运行 -> 停止它
         if self.arm_thread and self.arm_thread.isRunning():
             write_log(self.log_box, "[INFO] 机械臂已连接， 请勿重复连接！")
@@ -145,12 +200,19 @@ class ConnectTab(QWidget):
     
     # ---------------------------------------------------------
     def connect_device(self, device_type):
+        if device_type == "exam":
+            ip = self.exam_ip_edit.text().strip()
+            port = int(self.exam_port_edit.text().strip())
+            status_label = self.exam_detector_status_label
+            write_log(self.log_box, f"[INFO] EXAM 探测器: {ip}:{port} 正在连接 ...")
+            self.exam_detector.connect(ip, port, status_label, self._on_connect_result)
+        
         if device_type == "cor":
             ip = self.cor_ip_edit.text().strip()
             port = int(self.cor_port_edit.text().strip())
             status_label = self.cor_status_label
             write_log(self.log_box, f"[INFO] 正位COR: {ip}:{port} 正在连接 ...")
-            self.cor_controller.connect(ip, port, status_label, self._on_connect_result)
+            self.cor_detector.connect(ip, port, status_label, self._on_connect_result)
             
 
         elif device_type == "sag":
@@ -181,9 +243,12 @@ class ConnectTab(QWidget):
 
     # ---------------------------------------------------------
     def get_det_info(self, device_type):
-        if device_type == "cor":
+        if device_type == "exam":
+            write_log(self.log_box, "[INFO] 正在读取[EXAM]状态...")
+            self.exam_detector.get_status(self._on_status_result)
+        elif device_type == "cor":
             write_log(self.log_box, "[INFO] 正在读取[正位COR]状态...")
-            self.cor_controller.get_status(self._on_status_result)
+            self.cor_detector.get_status(self._on_status_result)
         elif device_type == "sag":
             write_log(self.log_box, "[INFO] 正在读取[侧位SAG]状态...")
             self.sag_controller.get_status(self._on_status_result)
@@ -203,10 +268,12 @@ class ConnectTab(QWidget):
             write_log(self.log_box, f"[ERROR] 获取状态失败：{result}")
 
     def laser_control(self, device_type):
-        if device_type == "cor":
-            self.cor_controller.laser_control(self._on_laser_control_result)
+        if device_type == "exam":
+            self.exam_detector.laser_control(self._on_laser_control_result)
+        elif device_type == "cor":
+            self.cor_detector.laser_control(self._on_laser_control_result)
         elif device_type == "sag":
-            self.sag_controller.laser_control(self._on_laser_control_result)
+            self.sag_detector.laser_control(self._on_laser_control_result)
         else:
             write_log(self.log_box, f"[ERROR] 未知设备类型。")
             return

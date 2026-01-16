@@ -1,7 +1,7 @@
 '''
 Author: LiuSheng
 Date: 2026-01-13 11:46:57
-LastEditTime: 2026-01-13 12:04:23
+LastEditTime: 2026-01-16 12:12:04
 Description: 
 '''
 from PySide6.QtCore import Qt
@@ -186,3 +186,97 @@ def create_arm_blocks(ip, ):
 
     group_box.setLayout(v_layout)
     return group_box, ip_edit, connect_btn, status_label, pos_spin, speed_spin, move_btn, cmd_input, btn_send_cmd
+
+
+def create_exam_motor_blocks(title, ip, port):
+    """机械臂控制模块"""
+    group_box = QGroupBox(title)
+    group_box.setStyleSheet(get_group_style())
+    v_layout = QVBoxLayout()
+    v_layout.setSpacing(10)
+    v_layout.setContentsMargins(15, 25, 15, 15)
+
+    # --- 第一行: 连接控制 ---
+    row1 = QHBoxLayout()
+    row1.addWidget(QLabel("IP:"))
+    # 默认 IP 与原脚本一致
+    ip_edit = QLineEdit(ip) 
+    ip_edit.setFixedWidth(120)
+    row1.addWidget(ip_edit)
+    
+    row1.addWidget(QLabel("Port:"))
+    port_edit = QLineEdit(port) 
+    port_edit.setFixedWidth(120)
+    row1.addWidget(port_edit)
+    
+    row1.addStretch()
+    
+    connect_btn = QPushButton("连接")
+    connect_btn.setMinimumHeight(30) # 按钮稍微高一点
+    connect_btn.setFixedWidth(120) 
+    
+    status_label = QLabel("未连接")
+    status_label.setAlignment(Qt.AlignCenter)
+    status_label.setStyleSheet("background-color: #ffe6e6; color: red; padding: 5px;")
+
+
+    row1.addWidget(connect_btn)
+    row1.addWidget(status_label)
+    v_layout.addLayout(row1)
+
+    # 分割线
+    line = QFrame()
+    line.setFrameShape(QFrame.HLine)
+    line.setFrameShadow(QFrame.Sunken)
+    v_layout.addWidget(line)
+
+    # --- 第二行: 移动参数 ---
+    row2 = QHBoxLayout()
+    
+    pos_spin = QDoubleSpinBox()
+    pos_spin.setRange(-5000, 18500) # 范围放大一点
+    pos_spin.setSuffix(" (0.1mm)") # 注意原脚本单位是 0.1mm
+    pos_spin.setDecimals(0)
+    pos_spin.setFixedWidth(180)
+    
+    speed_spin = QDoubleSpinBox()
+    speed_spin.setRange(0, 2000)
+    speed_spin.setValue(1000)
+    speed_spin.setSuffix(" (0.1mm/s)")
+    speed_spin.setFixedWidth(180)
+    
+    row2.addWidget(QLabel("位置:"))
+    row2.addWidget(pos_spin)
+    row2.addWidget(QLabel("速度:"))
+    row2.addWidget(speed_spin)
+    row2.addStretch()
+    
+    move_btn = QPushButton("移动(move)")
+    move_btn.setEnabled(False) # 默认开启，是否成功由 cmd2 内部逻辑决定
+    
+    row2.addWidget(move_btn)
+    v_layout.addLayout(row2)
+
+    row3 = QHBoxLayout()
+    note_label = QLabel("※ 备注: 位置表示距离顶端的距离(单位 0.1mm)")
+    note_label.setStyleSheet("color: #666666; font-size: 12px; font-style: italic;")
+    row3.addWidget(note_label)
+    v_layout.addLayout(row3)
+    
+    line2 = QFrame()
+    line2.setFrameShape(QFrame.HLine)
+    line2.setFrameShadow(QFrame.Sunken)
+    v_layout.addWidget(line2)
+
+
+    group_box.setLayout(v_layout)
+    return {
+        "group_box": group_box,
+        "ip_edit": ip_edit,
+        "port_edit": port_edit,
+        "connect_btn": connect_btn,
+        "status_label": status_label,
+        "pos_spin": pos_spin,
+        "speed_spin": speed_spin,
+        "move_btn": move_btn
+    }

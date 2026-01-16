@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QTabWidget, QTextEdit, QGroupBox, QVBoxLayout
 from gui.tabs.connect_tab import ConnectTab
 from gui.tabs.acquire_tab import AcquireTab
-from gui.tabs.acquire_tab2 import AcquireTab2
+from gui.tabs.exam_acquire_tab import ExamAcquireTab
 
 def create_log_groupbox():
     log_group = QGroupBox("输出日志(Log)")
@@ -27,23 +27,31 @@ def create_log_groupbox():
     log_box.setReadOnly(True)
     log_layout.addWidget(log_box)  # ✅ 只加一次
     
-    return log_group, log_box
+    return {
+        "log_group": log_group,
+        "log_box": log_box
+    }
 
 def create_tabs(log_box):
     tabs = QTabWidget()
 
     connect_tab = ConnectTab(log_box=log_box)
-    acquire_tab = AcquireTab(
-        connect_tab_instance = connect_tab,
-        log_box=log_box
-    )
-    acquire_tab2 = AcquireTab2(
+    # acquire_tab = AcquireTab(
+    #     connect_tab_instance = connect_tab,
+    #     log_box=log_box
+    # )
+    acquire_tab2 = ExamAcquireTab(
         connect_tab_instance = connect_tab,
         log_box=log_box
     )
 
     tabs.addTab(connect_tab, "连接")
-    tabs.addTab(acquire_tab, "采集")
-    tabs.addTab(acquire_tab2, "采集2")
-    return tabs, connect_tab, acquire_tab, acquire_tab2
+    # tabs.addTab(acquire_tab, "骨成像平台")
+    tabs.addTab(acquire_tab2, "实验平台")
+    return {
+        "tabs": tabs,
+        "connect_tab": connect_tab,
+        # "acquire_tab": acquire_tab,
+        "acquire_tab2": acquire_tab2
+    }
 

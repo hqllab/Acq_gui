@@ -3,13 +3,21 @@ import struct
 import time
 
 class MotorDriver:
-    def __init__(self, ip, port):
-        self.ip = ip
-        self.port = port
+    def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.settimeout(0.1) # 设置非阻塞接收的超时时间
         self.buffer = bytearray() # 内部维护接收缓冲区
+        # try:
+        #     self.sock.connect((self.ip, self.port))
+        #     print(f"Connected to {self.ip}:{self.port}")
+        # except Exception as e:
+        #     print(f"Connection failed: {e}")
+        #     exit(1)
+    
+    def connect(self, ip, port):
         try:
+            self.ip = ip
+            self.port = port
             self.sock.connect((self.ip, self.port))
             print(f"Connected to {self.ip}:{self.port}")
         except Exception as e:
@@ -172,9 +180,10 @@ class MotorDriver:
 # core/motor.py
 # 这里的 MotorDriver 类定义保持不变，省略不写...
 
-def control_motor(driver, posend=400, speed=100, start_event=None):
+def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start_event=None):
     """
     driver: 已经连接好的 MotorDriver 实例
+    posstart: 起点位置
     posend: 终点位置
     speed: 速度
     start_event: 线程同步事件
@@ -183,12 +192,31 @@ def control_motor(driver, posend=400, speed=100, start_event=None):
     # 【注意】这里不再创建 MotorDriver，也不再 connect
     
     # 参数设置
+    start_pos = posstart * 100
     end_pos = posend * 100
     run_speed = speed * 100
     
-    # 计算暂停时间 (防止除以0报错)
-    if run_speed == 0: run_speed = 100
-    pause_time = int(end_pos / run_speed) + 1.5
+    # 静止采集
+    if run_speed == 0 or pause_time != 0:
+        try:
+            print("Tube ON")
+            driver.doctr(0x7F01, [1]) 
+            time.sleep(2)
+            
+            # 4. 发出采集信号
+            if start_event is not None:
+                print(">>> Signal Triggered: Start Acquisition!")
+                start_event.set()
+            # 等待运动结束
+            time.sleep(pause_time+0.5)
+            # 6. Tube OFF
+            print("Tube OFF")
+            driver.doctr(0x7F01, [0])
+            time.sleep(2) # 稍微多等一下
+        
+        except Exception as e:
+            print(f"Error in Tube ON/OFF: {e}")
+            raise e
     
     try:
         print("\n--- Processing X Axis ---")
@@ -203,12 +231,19 @@ def control_motor(driver, posend=400, speed=100, start_event=None):
             
         print(f"Current X: {current_x}")
         
-        # 2. 回原点逻辑
-        if abs(current_x - 600) > 200:
-            print("Resetting X position...")
-            driver.doctr(0x0402, [2, 600, 1, 10000], with_succ=True)
-            time.sleep(2)
+        # # 2. 回原点逻辑
+        # if abs(current_x - 600) > 200:
+        #     print("Resetting X position...")
+        #     driver.doctr(0x0402, [2, 600, 1, 10000], with_succ=True)
+        #     time.sleep(2)
 
+        # 3. 移动到出发位置
+        print(f"Moving to {start_pos}...")
+        driver.doctr(0x0402, [1, run_speed, 2, start_pos], with_succ=True)
+        # 等待运动结束
+        time.sleep((start_pos/run_speed)+0.5)
+        
+        
         # 3. Tube ON
         print("Tube ON")
         driver.doctr(0x7F01, [1]) 

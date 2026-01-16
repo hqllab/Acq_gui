@@ -10,27 +10,24 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSettings
 
-from .acquire_tab_helper import create_motion_block, create_channel_panel, create_execution_block
+from .acquire_tab_helper import create_motion_block, create_channel_panel, create_execution_block_exam
 # from .acq_worker import AcquisitionWorker
 # from core.slz_controller import SLZWorkerThread
 from gui.func import write_log
-import time
 import threading
 from core.motor import MotorDriver
 
-class AcquireTab2(QWidget):
+class ExamAcquireTab(QWidget):
     """采集参数设置与控制界面"""
 
     def __init__(self, connect_tab_instance, log_box):
         super().__init__()
-        self.cor_ctrl = connect_tab_instance.cor_controller
-        self.motor_driver = None
+        self.detector = connect_tab_instance.exam_detector
+        self.motor_driver = connect_tab_instance.exam_motor_driver
         self.log_box = log_box
-        self.connect_motor_driver()
 
         self.initUI()
         self.bind_events()
-        # 初始化界面数值逻辑
         self.update_file_preview()
 
     def closeEvent(self, event):
@@ -49,14 +46,12 @@ class AcquireTab2(QWidget):
 
         # 2. 正位与侧位通道
         channels_layout = QHBoxLayout()
-        self.cor_ui = create_channel_panel("正位 (COR)")
-        self.sag_ui = create_channel_panel("侧位 (SAG)")
-        channels_layout.addWidget(self.cor_ui["panel"])
-        # channels_layout.addWidget(self.sag_ui["panel"])
+        self.detector_ui = create_channel_panel("探测器")
+        channels_layout.addWidget(self.detector_ui["panel"])
         main_layout.addLayout(channels_layout)
         
         # 3. 采集执行模块
-        self.acq_ui = create_execution_block()
+        self.acq_ui = create_execution_block_exam()
         main_layout.addWidget(self.acq_ui["group_box"])
 
     def select_directory(self):
@@ -79,9 +74,6 @@ class AcquireTab2(QWidget):
 
     def update_file_preview(self):
         """实时更新文件路径预览"""
-        # save_dir = self.dir_edit.text()
-        # prefix = self.prefix_edit.text()
-        # speed = self.speed.value()
         save_dir = self.acq_ui["dir_edit"].text()
         prefix = self.acq_ui["prefix_edit"].text()
         speed = int(self.arm_ui["speed"].value())
@@ -90,14 +82,12 @@ class AcquireTab2(QWidget):
             # 逻辑：能谱 -> cali, 合并能窗 -> recon
             mode_tag = "cali" if ui["radio_spectral"].isChecked() else "recon"
             filename = (f"{prefix}_{speed}mmps_{ui['kv'].value()}kv_{ui['ma'].value()}ma_"
-                        f"{mode_tag}_{int(ui['frame_time'].value())}mspf_sid{int(ui['sid'].value())}_{suffix}.mat")
+                        f"{mode_tag}_{int(ui['frame_time'].value())}mspf_sid{int(ui['sid'].value())}_sdd{int(ui['sdd'].value())}{suffix}.mat")
             return os.path.join(save_dir, filename)
 
-        self.cor_save_path = generate_path(self.cor_ui, "cor")
-        # self.sag_save_path = generate_path(self.sag_ui, "sag")
+        self.cor_save_path = generate_path(self.detector_ui, "cor")
         
         self.acq_ui["cor_preview_label"].setText(f"保存路径: {self.cor_save_path}")
-        # self.acq_ui["sag_preview_label"].setText(f"侧位路径: {self.sag_save_path}")
 
     def bind_events(self):
         """绑定 UI 事件"""
@@ -105,12 +95,10 @@ class AcquireTab2(QWidget):
         self.acq_ui["browse_btn"].clicked.connect(self.select_directory)
 
         # 2. 采集模式联动 (固定时长输入框开关)
-        self.cor_ui["radio_fixed"].toggled.connect(lambda checked: self.cor_ui["fixed_duration"].setEnabled(checked))
-        # self.sag_ui["radio_fixed"].toggled.connect(lambda checked: self.sag_ui["fixed_duration"].setEnabled(checked))
+        self.detector_ui["radio_fixed"].toggled.connect(lambda checked: self.detector_ui["fixed_duration"].setEnabled(checked))
 
         # 3. 数据模式联动 (FrameTime 范围限制)
-        self.cor_ui["radio_spectral"].toggled.connect(lambda: self._update_frametime_range(self.cor_ui))
-        # self.sag_ui["radio_spectral"].toggled.connect(lambda: self._update_frametime_range(self.sag_ui))
+        self.detector_ui["radio_spectral"].toggled.connect(lambda: self._update_frametime_range(self.detector_ui))
 
         # 4. 路径预览联动 (所有相关控件变化时触发预览更新)
         # 基础信息
@@ -121,7 +109,7 @@ class AcquireTab2(QWidget):
         # self.speed.valueChanged.connect(self.update_file_preview)
         
         # 通道参数
-        for ui in [self.cor_ui]:
+        for ui in [self.detector_ui]:
             ui["kv"].valueChanged.connect(self.update_file_preview)
             ui["ma"].valueChanged.connect(self.update_file_preview)
             ui["frame_time"].valueChanged.connect(self.update_file_preview)
@@ -129,16 +117,15 @@ class AcquireTab2(QWidget):
             ui["radio_spectral"].toggled.connect(self.update_file_preview)
 
         # 5. 初始化参数默认值
-        for ui in [self.cor_ui]:
-            ui["kv"].setValue(80)
-            ui["ma"].setValue(10)
-            ui["sid"].setValue(1000)
-            ui["sdd"].setValue(1400)
+        for ui in [self.detector_ui]:
+            ui["kv"].setValue(75)
+            ui["ma"].setValue(2)
+            ui["sid"].setValue(610)
+            ui["sdd"].setValue(670)
             self._update_frametime_range(ui) # 初始化范围限制
         
         # 6. 绑定采集
-        self.acq_ui["init_btn"].clicked.connect(self.init_acq_pipeline)
-        # self.acq_ui["start_btn"].clicked.connect(self.start_acq_pipeline)
+        self.acq_ui["start_btn"].clicked.connect(self.start_acq_pipeline)
     
     def connect_motor_driver(self):
         """建立持久连接"""
@@ -155,18 +142,14 @@ class AcquireTab2(QWidget):
                 self.motor_driver = None
 
 
-    def init_acq_pipeline(self):
-
+    def start_acq_pipeline(self):
         # 检查电机连接
         if self.motor_driver is None:
-             # 尝试重连一次
-            self.connect_motor_driver()
-            if self.motor_driver is None:
-                write_log(self.log_box, "[Error] 电机未连接，无法执行！")
-                return
+            write_log(self.log_box, "[Error] 电机未连接，无法执行！")
+            return
 
         # init
-        if self.cor_ctrl is None or self.cor_ctrl.det is None or self.cor_ctrl.offline:
+        if self.detector is None or self.detector.det is None or self.detector.offline:
             write_log(self.log_box, "[Error] 未连接正位[COR]探测器，无法采集！")
             return
             
@@ -174,20 +157,24 @@ class AcquireTab2(QWidget):
             write_log(self.log_box, "[Error] 文件路径已存在！")
             return
         
-        cor_acq_mode = "spectral" if self.cor_ui["radio_spectral"].isChecked() else "binned"
+        data_mode = "spectral" if self.detector_ui["radio_spectral"].isChecked() else "binned"
+        acq_mode = "fixed" if self.detector_ui["radio_fixed"].isChecked() else "sync"
         cor_win_range = []
-        if cor_acq_mode == "spectral":
-            cor_win_range = (self.cor_ui["spectral"][0].value(), self.cor_ui["spectral"][1].value())
-            # cor_win_range = (self.cor_ui["spectral_min"].value(), self.cor_ui["spectral_max"].value())
+        if data_mode == "spectral":
+            cor_win_range = (self.detector_ui["spectral"][0].value(), self.detector_ui["spectral"][1].value())
         else:
-            for min_spin, max_spin in self.cor_ui["binned_spinboxes"]:
+            for min_spin, max_spin in self.detector_ui["binned_spinboxes"]:
                 cor_win_range.append( (min_spin.value(), max_spin.value()) )
 
+        # 2s 是加减速
+        move_time = (self.arm_ui["end_pos"].value()- self.arm_ui["start_pos"].value())/self.arm_ui["speed"].value() + 2
+        
         acq_params = {
-            "acq_mode" : cor_acq_mode,
+            # "data_mode" : data_mode,
+            "acq_mode" : acq_mode,
             "win_range" : cor_win_range,
-            "fixed_duration" : self.cor_ui["fixed_duration"].value(),
-            "interval" : self.cor_ui["frame_time"].value(),
+            "acq_time" : self.detector_ui["fixed_duration"].value() if acq_mode == "fixed" else move_time,
+            "interval" : self.detector_ui["frame_time"].value(),
             "filepath" : self.cor_save_path,
         }
 
@@ -212,7 +199,7 @@ class AcquireTab2(QWidget):
             write_log(self.log_box, "[Info] 信号已收到，开始采集...")
             try:
                 # 传入提前获取好的参数
-                self.cor_ctrl.start_acquire(**acq_params)
+                self.detector.start_acquire(**acq_params)
                 write_log(self.log_box, "[Success] 正位(COR) 采集完成")
             except Exception as e:
                 write_log(self.log_box, f"[Error-COR] {e}")
@@ -223,11 +210,12 @@ class AcquireTab2(QWidget):
         def run_motor_task():
             write_log(self.log_box, "[Info] 电机开始运动流程...")
             try:
+                start_pos = self.arm_ui['start_pos'].value()
                 end_pos = self.arm_ui['end_pos'].value()
                 speed = self.arm_ui['speed'].value()
                 
                 # 【关键修改】将 self.motor_driver 传入函数
-                control_motor(self.motor_driver, end_pos, speed, start_event=trigger_event)
+                control_motor(self.motor_driver, start_pos, end_pos, speed, start_event=trigger_event)
                 
                 write_log(self.log_box, "[Info] 电机流程结束")
             except Exception as e:

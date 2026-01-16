@@ -162,7 +162,7 @@ def create_channel_panel(title):
     acq_v_layout.addWidget(QLabel("采集模式:"))
     mode_opt_row = QHBoxLayout()
     mode_opt_row.addSpacing(25)
-    # radio_sync = QRadioButton("运动同步"); 
+    radio_sync = QRadioButton("运动同步"); 
     radio_fixed = QRadioButton("固定时长"); 
     # radio_sync.setEnabled(False) 
     # radio_sync.setChecked(True)
@@ -172,9 +172,9 @@ def create_channel_panel(title):
     radio_fixed.setChecked(True)
     
     mode_group = QButtonGroup(main_panel)
-    # mode_group.addButton(radio_sync);
+    mode_group.addButton(radio_sync)
     mode_group.addButton(radio_fixed)
-    # mode_opt_row.addWidget(radio_sync); mode_opt_row.addSpacing(15)
+    mode_opt_row.addWidget(radio_sync); mode_opt_row.addSpacing(15)
     mode_opt_row.addWidget(radio_fixed); mode_opt_row.addWidget(fixed_duration_spin); mode_opt_row.addStretch()
     acq_v_layout.addLayout(mode_opt_row)
 
@@ -205,7 +205,7 @@ def create_channel_panel(title):
         "radio_spectral": radio_spectral, "radio_binned": radio_binned,
         "spectral": (spectral_min, spectral_max),
         "binned_spinboxes": binned_spinboxes,
-        # "radio_sync": radio_sync, 
+        "radio_sync": radio_sync, 
         "radio_fixed": radio_fixed,
         "fixed_duration": fixed_duration_spin, "frame_time": time_spin, 
         "sid": sid_spin, "sdd": sdd_spin
@@ -275,6 +275,78 @@ def create_execution_block():
     return {
         "group_box": group_box,
         "init_btn": init_btn,
+        "start_btn": start_btn,
+        "browse_btn": browse_btn,
+        "dir_edit": dir_edit,
+        "prefix_edit": prefix_edit,
+        "cor_preview_label": cor_preview_label,
+        "sag_preview_label": sag_preview_label,
+    }
+
+
+def create_execution_block_exam():
+    """3. 采集执行与保存模块"""
+    group_box = QGroupBox("采集执行控制")
+    group_box.setStyleSheet(get_group_style())
+    layout = QVBoxLayout()
+    layout.setContentsMargins(15, 25, 15, 15)
+
+    # 保存目录
+    row_dir = QHBoxLayout()
+    row_dir.addWidget(QLabel("保存目录:"))
+    dir_edit = QLineEdit(os.getcwd())
+    browse_btn = QPushButton("浏览...")
+    browse_btn.setFixedWidth(70)
+    row_dir.addWidget(dir_edit)
+    row_dir.addWidget(browse_btn)
+    layout.addLayout(row_dir)
+
+    # 文件前缀
+    row_prefix = QHBoxLayout()
+    row_prefix.addWidget(QLabel("文件前缀:"))
+    prefix_edit = QLineEdit("ScanTask_001")
+    row_prefix.addWidget(prefix_edit)
+    row_prefix.addStretch()
+    layout.addLayout(row_prefix)
+
+    # 路径预览
+    preview_box = QFrame()
+    preview_box.setStyleSheet("background-color: #f4f4f4; border: 1px dashed #bbb; border-radius: 4px;")
+    preview_v = QVBoxLayout(preview_box)
+    cor_preview_label = QLabel("正位路径: -")
+    sag_preview_label = QLabel("侧位路径: -")
+    # 使用等宽字体方便阅读路径
+    preview_style = "color: #2c3e50; font-family: 'Consolas', monospace; font-size: 11px;"
+    cor_preview_label.setStyleSheet(preview_style)
+    sag_preview_label.setStyleSheet(preview_style)
+    preview_v.addWidget(cor_preview_label)
+    preview_v.addWidget(sag_preview_label)
+    layout.addWidget(preview_box)
+
+    # # 发送球管参数按钮
+    # init_btn = QPushButton("设置采集范围&球管参数")
+    # init_btn.setFixedHeight(45)
+    # init_btn.setStyleSheet("""
+    #     QPushButton { background-color: #27ae60; color: white; font-weight: bold; font-size: 14px; border-radius: 5px; }
+    #     QPushButton:hover { background-color: #2ecc71; }
+    #     QPushButton:pressed { background-color: #1e8449; }
+    # """)
+    # layout.addWidget(init_btn)
+
+    # 采集按钮
+    start_btn = QPushButton("开始采集 (Start Acquisition)")
+    start_btn.setFixedHeight(45)
+    start_btn.setStyleSheet("""
+        QPushButton { background-color: #27ae60; color: white; font-weight: bold; font-size: 14px; border-radius: 5px; }
+        QPushButton:hover { background-color: #2ecc71; }
+        QPushButton:pressed { background-color: #1e8449; }
+    """)
+    layout.addWidget(start_btn)
+
+    group_box.setLayout(layout)
+    return {
+        "group_box": group_box,
+        # "init_btn": init_btn,
         "start_btn": start_btn,
         "browse_btn": browse_btn,
         "dir_edit": dir_edit,
