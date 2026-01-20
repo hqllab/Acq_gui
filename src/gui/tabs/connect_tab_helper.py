@@ -231,42 +231,42 @@ def create_exam_motor_blocks(title, ip, port):
     v_layout.addWidget(line)
 
     # --- 第二行: 移动参数 ---
-    row2 = QHBoxLayout()
+    # row2 = QHBoxLayout()
     
-    pos_spin = QDoubleSpinBox()
-    pos_spin.setRange(-5000, 18500) # 范围放大一点
-    pos_spin.setSuffix(" (0.1mm)") # 注意原脚本单位是 0.1mm
-    pos_spin.setDecimals(0)
-    pos_spin.setFixedWidth(180)
+    # pos_spin = QDoubleSpinBox()
+    # pos_spin.setRange(-5000, 18500) # 范围放大一点
+    # pos_spin.setSuffix(" (0.1mm)") # 注意原脚本单位是 0.1mm
+    # pos_spin.setDecimals(0)
+    # pos_spin.setFixedWidth(180)
     
-    speed_spin = QDoubleSpinBox()
-    speed_spin.setRange(0, 2000)
-    speed_spin.setValue(1000)
-    speed_spin.setSuffix(" (0.1mm/s)")
-    speed_spin.setFixedWidth(180)
+    # speed_spin = QDoubleSpinBox()
+    # speed_spin.setRange(0, 2000)
+    # speed_spin.setValue(1000)
+    # speed_spin.setSuffix(" (0.1mm/s)")
+    # speed_spin.setFixedWidth(180)
     
-    row2.addWidget(QLabel("位置:"))
-    row2.addWidget(pos_spin)
-    row2.addWidget(QLabel("速度:"))
-    row2.addWidget(speed_spin)
-    row2.addStretch()
+    # row2.addWidget(QLabel("位置:"))
+    # row2.addWidget(pos_spin)
+    # row2.addWidget(QLabel("速度:"))
+    # row2.addWidget(speed_spin)
+    # row2.addStretch()
     
-    move_btn = QPushButton("移动(move)")
-    move_btn.setEnabled(False) # 默认开启，是否成功由 cmd2 内部逻辑决定
+    # move_btn = QPushButton("移动(move)")
+    # move_btn.setEnabled(False) # 默认开启，是否成功由 cmd2 内部逻辑决定
     
-    row2.addWidget(move_btn)
-    v_layout.addLayout(row2)
+    # row2.addWidget(move_btn)
+    # v_layout.addLayout(row2)
 
-    row3 = QHBoxLayout()
-    note_label = QLabel("※ 备注: 位置表示距离顶端的距离(单位 0.1mm)")
-    note_label.setStyleSheet("color: #666666; font-size: 12px; font-style: italic;")
-    row3.addWidget(note_label)
-    v_layout.addLayout(row3)
+    # row3 = QHBoxLayout()
+    # note_label = QLabel("※ 备注: 位置表示距离顶端的距离(单位 0.1mm)")
+    # note_label.setStyleSheet("color: #666666; font-size: 12px; font-style: italic;")
+    # row3.addWidget(note_label)
+    # v_layout.addLayout(row3)
     
-    line2 = QFrame()
-    line2.setFrameShape(QFrame.HLine)
-    line2.setFrameShadow(QFrame.Sunken)
-    v_layout.addWidget(line2)
+    # line2 = QFrame()
+    # line2.setFrameShape(QFrame.HLine)
+    # line2.setFrameShadow(QFrame.Sunken)
+    # v_layout.addWidget(line2)
 
 
     group_box.setLayout(v_layout)
@@ -276,7 +276,7 @@ def create_exam_motor_blocks(title, ip, port):
         "port_edit": port_edit,
         "connect_btn": connect_btn,
         "status_label": status_label,
-        "pos_spin": pos_spin,
-        "speed_spin": speed_spin,
-        "move_btn": move_btn
+        # "pos_spin": pos_spin,
+        # "speed_spin": speed_spin,
+        # "move_btn": move_btn
     }

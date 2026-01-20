@@ -222,6 +222,7 @@ class AcquireTab(QWidget):
                 write_log(self.log_box, "[Success] 正位(COR) 采集完成")
             except Exception as e:
                 write_log(self.log_box, f"[Error-COR] {e}")
+                raise e
 
         def run_sag():
             try:

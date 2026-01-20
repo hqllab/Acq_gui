@@ -13,6 +13,7 @@ class DetInterface:
     def __init__(self, ip: str, port):
         """连接指定 IP 的探测器"""
         srv = DetData(ip, port)
+        print(ip, port)
         dets = srv.findDet()
         if not dets:
             raise ConnectionError(f"未在 {ip} 找到探测器")

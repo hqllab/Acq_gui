@@ -42,9 +42,9 @@ class ConnectTab(QWidget):
         exam_group_layout = QVBoxLayout()
         
         # 实验平台探测器ui
-        (exam_detector_group, self.exam_ip_edit, self.exam_port_edit, self.exam_btn, 
+        (exam_detector_group, self.exam_detector_ip_edit, self.exam_detector_port_edit, self.exam_btn, 
          self.exam_detector_status_label, self.exam_get_info_btn, self.exam_laser_btn) = create_detector_block(
-            "HD140探测器 (Exam)", "10.20.22.230", "7494"
+            "HD140探测器 (Exam)", "10.20.22.230", "7496"
         )
         exam_group_layout.addWidget(exam_detector_group)
         
@@ -65,9 +65,9 @@ class ConnectTab(QWidget):
         self.exam_port_edit = exam_motor_ui["port_edit"]
         self.exam_connect_btn = exam_motor_ui["connect_btn"]
         self.exam_status_label = exam_motor_ui["status_label"]
-        self.exam_pos_spin = exam_motor_ui["pos_spin"]
-        self.exam_speed_spin = exam_motor_ui["speed_spin"]
-        self.exam_move_btn = exam_motor_ui["move_btn"]
+        # self.exam_pos_spin = exam_motor_ui["pos_spin"]
+        # self.exam_speed_spin = exam_motor_ui["speed_spin"]
+        # self.exam_move_btn = exam_motor_ui["move_btn"]
         
         exam_group_layout.addWidget(exam_motor_ui["group_box"])
         main_layout.addLayout(exam_group_layout)
@@ -122,12 +122,12 @@ class ConnectTab(QWidget):
         )
         
         self.exam_connect_btn.clicked.connect(
-            lambda: self.connect_device("exam")
-        )
-        
-        self.cor_btn.clicked.connect(
             lambda: self.connect_motor()
         )
+        
+        # self.cor_btn.clicked.connect(
+        #     lambda: self.connect_motor()
+        # )
         
         self.cor_get_info_btn.clicked.connect(
             lambda: self.get_det_info("cor")
@@ -200,21 +200,20 @@ class ConnectTab(QWidget):
     
     # ---------------------------------------------------------
     def connect_device(self, device_type):
+        print('11111111', device_type)
         if device_type == "exam":
-            ip = self.exam_ip_edit.text().strip()
-            port = int(self.exam_port_edit.text().strip())
+            ip = self.exam_detector_ip_edit.text().strip()
+            port = int(self.exam_detector_port_edit.text().strip())
             status_label = self.exam_detector_status_label
+            print(ip, port, status_label)
             write_log(self.log_box, f"[INFO] EXAM 探测器: {ip}:{port} 正在连接 ...")
             self.exam_detector.connect(ip, port, status_label, self._on_connect_result)
-        
-        if device_type == "cor":
+        elif device_type == "cor":
             ip = self.cor_ip_edit.text().strip()
             port = int(self.cor_port_edit.text().strip())
             status_label = self.cor_status_label
             write_log(self.log_box, f"[INFO] 正位COR: {ip}:{port} 正在连接 ...")
             self.cor_detector.connect(ip, port, status_label, self._on_connect_result)
-            
-
         elif device_type == "sag":
             ip = self.sag_ip_edit.text().strip()
             port = int(self.sag_port_edit.text().strip())
