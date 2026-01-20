@@ -14,15 +14,31 @@ class MotorDriver:
         #     print(f"Connection failed: {e}")
         #     exit(1)
     
-    def connect(self, ip, port):
+    def connect(self, ip, port, status_label, callback=None):
         try:
             self.ip = ip
             self.port = port
             self.sock.connect((self.ip, self.port))
             print(f"Connected to {self.ip}:{self.port}")
+
+            
+            text = "已连接"
+            # 绿色方案: 浅绿背景 + 深绿文字
+            style = "background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 5px; border-radius: 3px; font-weight: bold;"
+
+            status_label.setText(text)
+            status_label.setStyleSheet(style)
+
         except Exception as e:
             print(f"Connection failed: {e}")
-            exit(1)
+
+            text = "离线模式"
+            style = "background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 5px; border-radius: 3px; font-weight: bold;"
+            
+            status_label.setText(text)
+            status_label.setStyleSheet(style)
+            
+            raise e
 
     def close(self):
         self.sock.close()
@@ -197,7 +213,8 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
     run_speed = speed * 100
     
     # 静止采集
-    if run_speed == 0 or pause_time != 0:
+    if run_speed == 0 and pause_time != 0:
+        print('静止采集模式')
         try:
             print("Tube ON")
             driver.doctr(0x7F01, [1]) 
@@ -217,12 +234,30 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
         except Exception as e:
             print(f"Error in Tube ON/OFF: {e}")
             raise e
+        return
+    
+    use_y = True
+    id = 0x0400
+    def getId(id):
+        if use_y:
+            return id + 0x0100 
+        return id
+    def moveInSpeedMode(drv: MotorDriver, speed: int, pos: int):
+        ack_data = drv.doctr(getId(0x0401), [], with_succ=False)
+        if len(ack_data) >= 8:
+            current_pos = struct.unpack('<i', ack_data[4:8])[0]
+        else:
+            current_pos = 0
+        if current_pos < pos:
+            drv.doctr(getId(0x0402), [1, abs(speed), 2, pos], with_succ=True)
+        else:
+            drv.doctr(getId(0x0402), [1, -abs(speed), 1, pos], with_succ=True)
     
     try:
         print("\n--- Processing X Axis ---")
         
         # 1. 检查状态 (使用传入的 driver)
-        ack_data = driver.doctr(0x0401, [], with_succ=False)
+        ack_data = driver.doctr(getId(0x0401), [], with_succ=False)
         
         if len(ack_data) >= 8:
             current_x = struct.unpack('<i', ack_data[4:8])[0]
@@ -231,17 +266,18 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
             
         print(f"Current X: {current_x}")
         
-        # # 2. 回原点逻辑
-        # if abs(current_x - 600) > 200:
-        #     print("Resetting X position...")
-        #     driver.doctr(0x0402, [2, 600, 1, 10000], with_succ=True)
-        #     time.sleep(2)
+        # 2. 回原点逻辑
+        if abs(current_x - 600) > 200:
+            print("Resetting X position...")
+            moveInSpeedMode(driver, 10000, 600)
+            # driver.doctr(0x0402, [2, 600, 1, 10000], with_succ=True)
+            time.sleep(2)
 
-        # 3. 移动到出发位置
-        print(f"Moving to {start_pos}...")
-        driver.doctr(0x0402, [1, run_speed, 2, start_pos], with_succ=True)
-        # 等待运动结束
-        time.sleep((start_pos/run_speed)+0.5)
+        # # # 3. 移动到出发位置
+        # print(f"Moving to {start_pos}...")
+        # driver.doctr(0x0402, [1, run_speed, 2, start_pos], with_succ=True)
+        # # 等待运动结束
+        # time.sleep((start_pos/run_speed)+0.5)
         
         
         # 3. Tube ON
@@ -256,10 +292,12 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
 
         # 5. 运动
         print(f"Moving to {end_pos}...")
-        driver.doctr(0x0402, [1, run_speed, 2, end_pos], with_succ=True)
-        
+        moveInSpeedMode(driver, run_speed, end_pos)
+        # driver.doctr(0x0402, [1, run_speed, 2, end_pos], with_succ=True)
+        sleep_time = (end_pos-start_pos)/run_speed + 2
+        print(f"777777 pause_time: {sleep_time}")
         # 等待运动结束
-        time.sleep(pause_time)
+        time.sleep(sleep_time)
 
         # 6. Tube OFF
         print("Tube OFF")
@@ -268,7 +306,8 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
 
         # 7. 回退
         print("Moving back...")
-        driver.doctr(0x0402, [1, -4000, 1, 900], with_succ=True)
+        moveInSpeedMode(driver, 4000, 900)
+        # driver.doctr(0x0402, [1, -4000, 1, 900], with_succ=True)
 
     except Exception as e:
         print(f"An error occurred in motor control: {e}")

@@ -16,7 +16,7 @@ import threading
 
 default_config = {
     "position_configs": [
-        {"pos": 0, "en": 1, "polarity": 0, "clearPos": 1, "zeroShift": 0},
+        {"pos": 0, "en": 0, "polarity": 0, "clearPos": 1, "zeroShift": 0},
         {"pos": 1, "en": 0, "polarity": 0, "clearPos": 1, "zeroShift": 0}
     ],
     "power_switches": {
@@ -84,6 +84,8 @@ class DetectorController:
             self.det.set_position_config(default_config["position_configs"])
             self.det.set_power_switch(default_config["power_switches"])
             self.det.update_detector_params(default_config["detector_params"])
+            
+            self.det.DetectRegSet(0x0018, 0x600003FF)
         except Exception as e:
             print(f"初始化配置失败: {e}")
     
@@ -102,27 +104,27 @@ class DetectorController:
             if callback:
                 callback(False, f"激光器控制失败: {e}")
     
-    def start_acquire(self, acq_mode, win_range, acq_time, interval, filepath, callback=None):
+    def start_acquire(self, data_mode, win_range, acq_time, interval, filepath, callback=None):
         """启动数据采集"""
         if self.offline or not self.det:
             callback(False, "离线模式无法启动采集。")
             return
         try:
-            if acq_mode == "spectral":
+            if data_mode == "spectral":
                 self.det.det.setWinRange(0, win_range[0], win_range[1])
                 # data = histAcqNoMove(self.det.det, cnt=None, time=4, interval = int(400 * 10))
                 interval = int(interval * 10)
-                print(f"time: {acq_time}, interval: {interval}")
+                print(f"acq_time: {acq_time}, interval: {interval}")
                 data = histAcqNoMove(self.det.det, cnt=None, time=acq_time, interval = interval)
                 saveHist(data, filepath, None)
 
-            elif acq_mode == "binned":
+            elif data_mode == "binned":
                 print('running in binned')
                 for i,win in enumerate(win_range):
                     print(i ,win)
                     self.det.det.setWinRange(i, win[0], win[1])
                 interval = int(interval * 10)
-                print(f"time: {acq_time}, interval: {interval}")
+                print(f"acq_time: {acq_time}, interval: {interval}")
                 data = thrAcqNoMove(self.det.det, cnt=None, time=acq_time, interval = interval)
                 saveThr(data, filepath)
                 

@@ -65,9 +65,9 @@ class ExamAcquireTab(QWidget):
         is_spectral = ui_dict["radio_spectral"].isChecked()
         if is_spectral:
             # 能谱模式: 4.0ms - 100ms
-            ui_dict["frame_time"].setMinimum(4.0)
-            if ui_dict["frame_time"].value() < 4.0:
-                ui_dict["frame_time"].setValue(4.0)
+            ui_dict["frame_time"].setMinimum(0.5)
+            if ui_dict["frame_time"].value() < 0.5:
+                ui_dict["frame_time"].setValue(0.5)
         else:
             # 合并能窗: 0.5ms - 100ms
             ui_dict["frame_time"].setMinimum(0.5)
@@ -76,16 +76,24 @@ class ExamAcquireTab(QWidget):
         """实时更新文件路径预览"""
         save_dir = self.acq_ui["dir_edit"].text()
         prefix = self.acq_ui["prefix_edit"].text()
-        speed = int(self.arm_ui["speed"].value())
+        speed = round(self.arm_ui["speed"].value(), 2)
+        
+        voltage = int(self.detector_ui["kv"].value())
+        current = round(self.detector_ui["ma"].value(), 2)
+        frame_time = round(self.detector_ui['frame_time'].value(), 2)
+        sid = int(self.detector_ui["sid"].value())
+        sdd = int(self.detector_ui["sdd"].value())
+        
+        
 
-        def generate_path(ui, suffix):
+        def generate_path(suffix):
             # 逻辑：能谱 -> cali, 合并能窗 -> recon
-            mode_tag = "cali" if ui["radio_spectral"].isChecked() else "recon"
-            filename = (f"{prefix}_{speed}mmps_{ui['kv'].value()}kv_{ui['ma'].value()}ma_"
-                        f"{mode_tag}_{int(ui['frame_time'].value())}mspf_sid{int(ui['sid'].value())}_sdd{int(ui['sdd'].value())}{suffix}.mat")
+            mode_tag = "cali" if self.detector_ui["radio_spectral"].isChecked() else "recon"
+            filename = (f"{prefix}_{speed}mmps_{voltage}kv_{current}ma_"
+                        f"{frame_time}mspf_sid{sid}_sdd{sdd}_{mode_tag}_{suffix}.mat")
             return os.path.join(save_dir, filename)
 
-        self.cor_save_path = generate_path(self.detector_ui, "cor")
+        self.cor_save_path = generate_path("")
         
         self.acq_ui["cor_preview_label"].setText(f"保存路径: {self.cor_save_path}")
 
@@ -167,11 +175,14 @@ class ExamAcquireTab(QWidget):
                 cor_win_range.append( (min_spin.value(), max_spin.value()) )
 
         # 2s 是加减速
-        move_time = (self.arm_ui["end_pos"].value()- self.arm_ui["start_pos"].value())/self.arm_ui["speed"].value() + 2
-        
+        try:
+            move_time = (self.arm_ui["end_pos"].value()- self.arm_ui["start_pos"].value())/self.arm_ui["speed"].value() + 2
+        except:
+            move_time = 0.5
+            
         acq_params = {
-            # "data_mode" : data_mode,
-            "acq_mode" : acq_mode,
+            "data_mode" : data_mode,
+            # "acq_mode" : acq_mode,
             "win_range" : cor_win_range,
             "acq_time" : self.detector_ui["fixed_duration"].value() if acq_mode == "fixed" else move_time,
             "interval" : self.detector_ui["frame_time"].value(),
@@ -215,7 +226,7 @@ class ExamAcquireTab(QWidget):
                 speed = self.arm_ui['speed'].value()
                 
                 # 【关键修改】将 self.motor_driver 传入函数
-                control_motor(self.motor_driver, start_pos, end_pos, speed, start_event=trigger_event)
+                control_motor(self.motor_driver, start_pos, end_pos, speed, pause_time=self.detector_ui["fixed_duration"].value(), start_event=trigger_event)
                 
                 write_log(self.log_box, "[Info] 电机流程结束")
             except Exception as e:

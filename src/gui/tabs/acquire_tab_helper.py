@@ -25,12 +25,13 @@ def create_motion_block():
     def create_double_spin(val, unit):
         spin = QDoubleSpinBox()
         spin.setRange(0, 2000)
-        spin.setDecimals(1)
+        spin.setDecimals(2)
         spin.setValue(val)
         spin.setSuffix(f" {unit}")
         return spin
 
     start_pos = create_double_spin(0.0, "mm")
+    start_pos.setDisabled(True)
     end_pos = create_double_spin(100.0, "mm")
     speed = create_double_spin(100.0, "mm/s")
 
@@ -70,7 +71,7 @@ def create_channel_panel(title):
     tube_group.setStyleSheet(get_sub_group_style())
     tube_layout = QHBoxLayout()
     kv_spin = QSpinBox(); kv_spin.setRange(0, 130); kv_spin.setSuffix(" kV")
-    ma_spin = QSpinBox(); ma_spin.setRange(0, 200); ma_spin.setSuffix(" mA")
+    ma_spin = QDoubleSpinBox(); ma_spin.setRange(0, 200); ma_spin.setSuffix(" mA")
     tube_layout.addWidget(QLabel("电压:"))
     tube_layout.addWidget(kv_spin)
     tube_layout.addWidget(QLabel("电流:"))
@@ -180,7 +181,7 @@ def create_channel_panel(title):
 
     time_row = QHBoxLayout()
     time_spin = QDoubleSpinBox()
-    time_spin.setRange(0.5, 100.0); time_spin.setSuffix(" ms"); time_spin.setValue(10.0)
+    time_spin.setRange(0.5, 100.0); time_spin.setSuffix(" ms"); time_spin.setValue(2.0)
     time_row.addWidget(QLabel("FrameTime:"))
     time_row.addWidget(time_spin); time_row.addStretch()
     acq_v_layout.addLayout(time_row)
