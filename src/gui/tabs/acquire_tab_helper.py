@@ -356,3 +356,27 @@ def create_execution_block_exam():
         "prefix_edit": prefix_edit,
         "preview_label": preview_label,
     }
+    
+    
+def create_show_img_block():
+    """4. 显示采集图像模块"""
+    group_box = QGroupBox("采集图像显示")
+    group_box.setStyleSheet(get_group_style())
+    layout = QVBoxLayout()
+    layout.setContentsMargins(15, 25, 15, 15)
+
+    # 显示图像区域
+    show_btn = QPushButton("显示图像")
+    show_btn.setFixedHeight(45)
+    show_btn.setStyleSheet("""
+        QPushButton { background-color: #27ae60; color: white; font-weight: bold; font-size: 14px; border-radius: 5px; }
+        QPushButton:hover { background-color: #2ecc71; }
+        QPushButton:pressed { background-color: #1e8449; }
+    """)
+    layout.addWidget(show_btn)
+
+    group_box.setLayout(layout)
+    return {
+        "group_box": group_box,
+        "img_label": show_btn,
+    }

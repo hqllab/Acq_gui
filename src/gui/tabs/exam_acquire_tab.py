@@ -10,11 +10,47 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSettings
 
-from .acquire_tab_helper import create_motion_block, create_tube_panel, create_execution_block_exam
+from .acquire_tab_helper import create_motion_block, create_tube_panel, create_execution_block_exam, create_show_img_block
 from gui.func import write_log
 from gui.tabs.connect_tab import ConnectTab
 import threading
-from core.motor import MotorDriver
+
+import matplotlib
+matplotlib.use('QtAgg')  # 声明使用 Qt 后端
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton
+
+# --- 定义一个专门用来看图的弹窗 ---
+class ImagePopup(QDialog):
+    def __init__(self, data, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("图像预览")
+        self.resize(800, 600)
+
+        # 1. 创建 Matplotlib 的 Figure 和 Canvas
+        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.canvas = FigureCanvas(self.fig)
+        
+        # 2. 在 Figure 上绘图
+        self.ax = self.fig.add_subplot(111)
+        # 这里进行绘图操作，data 就是你传进来的 pixels_array
+        self.im = self.ax.imshow(data, aspect="auto")
+        self.fig.colorbar(self.im, ax=self.ax) # 加上色条
+        self.ax.set_title("采集图像预览")
+
+        # 3. 布局管理
+        layout = QVBoxLayout()
+        layout.addWidget(self.canvas) # 把画板加进布局
+        
+        # 加个关闭按钮
+        btn_close = QPushButton("关闭")
+        btn_close.clicked.connect(self.accept)
+        layout.addWidget(btn_close)
+        
+        self.setLayout(layout)
+
+
 
 class ExamAcquireTab(QWidget):
     """采集参数设置与控制界面"""
@@ -120,6 +156,10 @@ class ExamAcquireTab(QWidget):
         # 3. 采集执行模块
         self.acq_ui = create_execution_block_exam()
         main_layout.addWidget(self.acq_ui["group_box"])
+        
+        # 4. 显示采集图像模块
+        self.show_img_ui = create_show_img_block()
+        main_layout.addWidget(self.show_img_ui["group_box"])
 
     def select_directory(self):
         """选择文件夹"""
@@ -198,7 +238,31 @@ class ExamAcquireTab(QWidget):
         
         # 6. 绑定采集
         self.acq_ui["start_btn"].clicked.connect(self.start_acq_pipeline)
+        # 7. 绑定显示图像
+        self.show_img_ui["img_label"].clicked.connect(self.show_image)
 
+    
+    # --- 在你的主类中使用 ---
+    def show_image(self):
+        """显示采集图像"""
+        try:
+            from func import load_mat_from_file
+            
+            # 1. 加载数据 (如果文件很大，这一步可能会导致短暂的卡顿，建议用线程，但小文件无所谓)
+            pos_array, pixels_array = load_mat_from_file(self.save_path)
+            
+            # 处理一下数据 (比如求和)
+            image_data = pixels_array.sum(axis=-1)
+
+            # 2. 创建并显示弹窗
+            # 这里的 self 是主窗口
+            self.image_dialog = ImagePopup(image_data, parent=self) 
+            self.image_dialog.show() # 非阻塞显示，主窗口依然可以动
+            # 或者使用 self.image_dialog.exec() # 模态显示，主窗口不能动，但不会“假死”
+            
+        except Exception as e:
+            print(f"显示图像失败: {e}")
+        
 
     def start_acq_pipeline(self):
         # 检查电机连接

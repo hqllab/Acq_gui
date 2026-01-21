@@ -104,6 +104,8 @@ def _save(name, data):
     #     else:
     #         logging.warning("跳过保存")
     #         return
+    head, tail = os.path.split(real_name)
+    os.makedirs(head, exist_ok=True)
     savemat(real_name, data, oned_as="column")
 
 def saveHist(data, name, calFile: str | None = ""):
