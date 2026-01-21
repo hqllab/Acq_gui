@@ -18,7 +18,7 @@ class ConnectTab(QWidget):
 
     def __init__(self, log_box):
         super().__init__()
-        # self.settings = QSettings("ScanGUI", "DetectorApp")
+        self.settings = QSettings("Vplus", "ScanGui")
         
         # 实验平台
         self.exam_detector = DetectorController()
@@ -33,6 +33,8 @@ class ConnectTab(QWidget):
         
         self.initUI()
         self.bind_events()
+        
+        self.load_settings()
 
     def initUI(self):
         # 1. 创建总布局：使用 QVBoxLayout (垂直排列)
@@ -296,3 +298,71 @@ class ConnectTab(QWidget):
             write_log(self.log_box, f"[INFO] {msg}")
         else:
             write_log(self.log_box, f"[ERROR] {msg}")
+
+
+    def load_settings(self):
+        """从配置文件加载参数到 UI"""
+        # value(键名, 默认值) - 如果没有保存过，就使用默认值
+        
+        # 1. 实验平台探测器
+        self.exam_detector_ui["ip_edit"].setText(self.settings.value("exam/det_ip", "10.20.22.230"))
+        self.exam_detector_ui["port_edit"].setText(self.settings.value("exam/det_port", "7496"))
+
+        # 2. 实验平台机械臂
+        self.exam_arm_ui["ip_edit"].setText(self.settings.value("exam/arm_ip", "10.20.22.56"))
+        self.exam_arm_ui["port_edit"].setText(self.settings.value("exam/arm_port", "19001"))
+
+        # 3. 骨密度正位探测器
+        self.cor_detector_ui["ip_edit"].setText(self.settings.value("bone/cor_ip", "10.20.77.2"))
+        self.cor_detector_ui["port_edit"].setText(self.settings.value("bone/cor_port", "50077"))
+
+        # 4. 骨密度侧位探测器
+        self.sag_detector_ui["ip_edit"].setText(self.settings.value("bone/sag_ip", "10.20.99.2"))
+        self.sag_detector_ui["port_edit"].setText(self.settings.value("bone/sag_port", "50099"))
+
+        # 5. 骨密度机械臂
+        self.bone_arm_ui["ip_edit"].setText(self.settings.value("bone/arm_ip", "10.20.22.232"))
+        
+        write_log(self.log_box, "[INFO] 参数配置已加载")
+
+    def save_settings(self):
+        """将 UI 中的参数保存到配置文件"""
+        # setValue(键名, 值)
+        
+        self.settings.setValue("exam/det_ip", self.exam_detector_ui["ip_edit"].text())
+        self.settings.setValue("exam/det_port", self.exam_detector_ui["port_edit"].text())
+
+        self.settings.setValue("exam/arm_ip", self.exam_arm_ui["ip_edit"].text())
+        self.settings.setValue("exam/arm_port", self.exam_arm_ui["port_edit"].text())
+
+        self.settings.setValue("bone/cor_ip", self.cor_detector_ui["ip_edit"].text())
+        self.settings.setValue("bone/cor_port", self.cor_detector_ui["port_edit"].text())
+
+        self.settings.setValue("bone/sag_ip", self.sag_detector_ui["ip_edit"].text())
+        self.settings.setValue("bone/sag_port", self.sag_detector_ui["port_edit"].text())
+        
+        self.settings.setValue("bone/arm_ip", self.bone_arm_ui["ip_edit"].text())
+
+        # 如果需要立即写入磁盘，可以调用 sync()，通常不需要，Qt 会自动处理
+        # self.settings.sync() 
+        print("Settings Saved")
+
+    # ==========================================
+    #           触发保存的时机
+    # ==========================================
+
+    def closeEvent(self, event):
+        """
+        重写关闭事件：
+        当此窗口被关闭时，自动保存参数。
+        注意：如果 ConnectTab 是被嵌入在 QTabWidget 里的，且主窗口关闭时
+        可能不会单独触发这个 Tab 的 closeEvent，需要在主窗口关闭时显式调用。
+        """
+        self.save_settings()
+        
+        # 确保线程安全退出
+        if self.arm_thread and self.arm_thread.isRunning():
+            self.arm_thread.stop() # 假设你的线程有 stop 方法
+            self.arm_thread.wait()
+            
+        super().closeEvent(event)

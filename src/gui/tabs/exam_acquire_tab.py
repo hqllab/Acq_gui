@@ -21,6 +21,8 @@ class ExamAcquireTab(QWidget):
 
     def __init__(self, connect_tab_instance: ConnectTab, log_box):
         super().__init__()
+        self.settings = QSettings("Vplus", "ScanGui")
+        
         self.detector = connect_tab_instance.exam_detector
         self.motor_driver = connect_tab_instance.exam_motor_driver
         self.log_box = log_box
@@ -28,13 +30,79 @@ class ExamAcquireTab(QWidget):
         self.initUI()
         self.bind_events()
         self.update_file_preview()
+        self.load_settings()
+        
+    def load_settings(self):
+        """加载采集参数设置"""
+        # 加载运动控制参数
+        self.arm_ui["start_pos"].setValue(self.settings.value("exam_acquire/start_pos", 0.0, float))
+        self.arm_ui["end_pos"].setValue(self.settings.value("exam_acquire/end_pos", 100.0, float))
+        self.arm_ui["speed"].setValue(self.settings.value("exam_acquire/speed", 100.0, float))
+        
+        # 加载球管采集参数
+        self.detector_ui["kv"].setValue(self.settings.value("exam_acquire/kv", 75, int))
+        self.detector_ui["ma"].setValue(self.settings.value("exam_acquire/ma", 2.0, float))
+        self.detector_ui["radio_spectral"].setChecked(self.settings.value("exam_acquire/is_spectral", True, bool))
+        self.detector_ui["radio_binned"].setChecked(self.settings.value("exam_acquire/is_binned", False, bool))
+        self.detector_ui["spectral"][0].setValue(self.settings.value("exam_acquire/spectral_0", 0, int))
+        self.detector_ui["spectral"][1].setValue(self.settings.value("exam_acquire/spectral_1", 120, int))
+        default_win = [
+            [0, 30],
+            [40, 80],
+            [15, 60],
+            [0, 100]
+        ]
+        for i, win in enumerate(default_win):
+            self.detector_ui[f"binned_spinboxes"][i][0].setValue(self.settings.value(f"exam_acquire/binned_spinboxes_{i}0", win[0], int))
+            self.detector_ui[f"binned_spinboxes"][i][1].setValue(self.settings.value(f"exam_acquire/binned_spinboxes_{i}1", win[1], int))
+        self.detector_ui["radio_sync"].setChecked(self.settings.value("exam_acquire/is_sync", True, bool))
+        self.detector_ui["radio_fixed"].setChecked(self.settings.value("exam_acquire/is_fixed", False, bool))
+        self.detector_ui["fixed_time"].setValue(self.settings.value("exam_acquire/fixed_time", 5.0, float))
+        self.detector_ui["frame_time"].setValue(self.settings.value("exam_acquire/frame_time", 2.0, float))
+        self.detector_ui["sid"].setValue(self.settings.value("exam_acquire/sid", 610.0, float))
+        self.detector_ui["sdd"].setValue(self.settings.value("exam_acquire/sdd", 670, float))
+        self._update_frametime_range(self.detector_ui)  # 根据模式更新范围
+        
+        # 数据保存目录
+        self.acq_ui["dir_edit"].setText(self.settings.value("exam_acquire/dir", os.path.expanduser("~"), str))
+        self.acq_ui["prefix_edit"].setText(self.settings.value("exam_acquire/prefix", "exam", str))
+        self.update_file_preview()
 
+    
+    def save_settings(self):
+        # 保存运动控制参数
+        self.settings.setValue("exam_acquire/start_pos", self.arm_ui["start_pos"].value())
+        self.settings.setValue("exam_acquire/end_pos", self.arm_ui["end_pos"].value())
+        self.settings.setValue("exam_acquire/speed", self.arm_ui["speed"].value())
+        # 保存球管采集参数
+        self.settings.setValue("exam_acquire/kv", self.detector_ui["kv"].value())
+        self.settings.setValue("exam_acquire/ma", self.detector_ui["ma"].value())
+        self.settings.setValue("exam_acquire/is_spectral", self.detector_ui["radio_spectral"].isChecked())
+        self.settings.setValue("exam_acquire/is_binned", self.detector_ui["radio_binned"].isChecked())
+        self.settings.setValue("exam_acquire/spectral_0", self.detector_ui["spectral"][0].value())
+        self.settings.setValue("exam_acquire/spectral_1", self.detector_ui["spectral"][1].value())
+        for i, win in enumerate(self.detector_ui["binned_spinboxes"]):
+            self.settings.setValue(f"exam_acquire/binned_spinboxes_{i}0", win[0].value())
+            self.settings.setValue(f"exam_acquire/binned_spinboxes_{i}1", win[1].value())
+        self.settings.setValue("exam_acquire/is_sync", self.detector_ui["radio_sync"].isChecked())
+        self.settings.setValue("exam_acquire/is_fixed", self.detector_ui["radio_fixed"].isChecked())
+        self.settings.setValue("exam_acquire/fixed_time", self.detector_ui["fixed_time"].value())
+        self.settings.setValue("exam_acquire/frame_time", self.detector_ui["frame_time"].value())
+        self.settings.setValue("exam_acquire/sid", self.detector_ui["sid"].value())
+        self.settings.setValue("exam_acquire/sdd", self.detector_ui["sdd"].value())
+        # 数据保存目录
+        self.settings.setValue("exam_acquire/dir", self.acq_ui["dir_edit"].text())
+        self.settings.setValue("exam_acquire/prefix", self.acq_ui["prefix_edit"].text())
+        
+        print("ACQUIRE Settings saved successfully.")
+        
+    
     def closeEvent(self, event):
         """窗口关闭时断开连接"""
         if self.motor_driver:
             self.motor_driver.close()
+        self.save_settings()
         super().closeEvent(event)
-
 
     def initUI(self):
         main_layout = QVBoxLayout(self)

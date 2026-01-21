@@ -1,7 +1,7 @@
 '''
 Author: LiuSheng
 Date: 2026-01-12 16:41:02
-LastEditTime: 2026-01-21 12:01:06
+LastEditTime: 2026-01-21 16:20:55
 Description: 
 '''
 
@@ -28,6 +28,8 @@ class MainWindow(QMainWindow):
         # -----------------------------
         tabs_ui = create_tabs(log_box)
         tabs = tabs_ui["tabs"]
+        self.connect_tab = tabs_ui["connect_tab"]
+        self.exam_acq_tab = tabs_ui["exam_acq_tab"]
 
         # -----------------------------
         # 3. Central layout
@@ -39,4 +41,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(tabs, stretch=3)
         layout.addWidget(log_group, stretch=2)  # ✅ 加的是 GroupBox
         self.setCentralWidget(central)
+        
+    def closeEvent(self, event):
+        """主窗口关闭事件"""
+        
+        # 显式调用 ConnectTab 的保存方法
+        self.connect_tab.save_settings()
+        self.exam_acq_tab.save_settings()
+        
+        # 接受关闭
+        event.accept()
 
