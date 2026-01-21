@@ -43,13 +43,12 @@ def create_motion_block():
     controls_h_layout.addWidget(speed)
     controls_h_layout.addStretch()
 
-    note_label = QLabel("※ 备注: 位置表示距离顶端的距离")
+    note_label = QLabel("※ 备注: 起点位置暂时失效")
     note_label.setStyleSheet("color: #666666; font-size: 12px; font-style: italic;")
 
     main_v_layout.addLayout(controls_h_layout)
     main_v_layout.addWidget(note_label)
     group_box.setLayout(main_v_layout)
-    # return group_box, start_pos, end_pos, speed
 
     return {
         "group_box": group_box,
@@ -58,7 +57,7 @@ def create_motion_block():
         "speed": speed,
     }
 
-def create_channel_panel(title):
+def create_tube_panel(title):
     """创建采集通道面板（正位/侧位）"""
     main_panel = QGroupBox(title)
     main_panel.setStyleSheet(get_group_style())
@@ -70,12 +69,16 @@ def create_channel_panel(title):
     tube_group = QGroupBox("球管控制")
     tube_group.setStyleSheet(get_sub_group_style())
     tube_layout = QHBoxLayout()
+    # tube_layout.setSpacing(5)                 # 控件之间的距离
+    
     kv_spin = QSpinBox(); kv_spin.setRange(0, 130); kv_spin.setSuffix(" kV")
     ma_spin = QDoubleSpinBox(); ma_spin.setRange(0, 200); ma_spin.setSuffix(" mA")
-    tube_layout.addWidget(QLabel("电压:"))
+    tube_layout.addWidget(QLabel("电压:(手动设置)"))
     tube_layout.addWidget(kv_spin)
-    tube_layout.addWidget(QLabel("电流:"))
+    tube_layout.addSpacing(40) 
+    tube_layout.addWidget(QLabel("电流:(手动设置)"))
     tube_layout.addWidget(ma_spin)
+    tube_layout.addStretch() 
     tube_group.setLayout(tube_layout)
 
     # --- 2. 采集控制 ---
@@ -106,15 +109,22 @@ def create_channel_panel(title):
     # -----------------------
     spectral_group = QGroupBox("能谱范围")
     spectral_layout = QHBoxLayout(spectral_group)
+    
+    spectral_layout.addSpacing(30)
     spectral_layout.addWidget(QLabel("下限:"))
     spectral_min = QSpinBox()
     spectral_min.setRange(0, 120)
     spectral_layout.addWidget(spectral_min)
+    
+    spectral_layout.addSpacing(30)
+    
     spectral_layout.addWidget(QLabel("上限:"))
     spectral_max = QSpinBox()
     spectral_max.setRange(0, 120)
     spectral_max.setValue(100)
     spectral_layout.addWidget(spectral_max)
+    spectral_layout.addStretch()
+    
     acq_v_layout.addWidget(spectral_group)
 
     # -----------------------
@@ -131,16 +141,22 @@ def create_channel_panel(title):
     ]
     for i, win in enumerate(default_win):
         row = QHBoxLayout()
+        row.addSpacing(30)
         row.addWidget(QLabel(f"窗{i+1}下限:"))
         min_spin = QSpinBox()
         min_spin.setRange(0, 120)
         min_spin.setValue(win[0])
         row.addWidget(min_spin)
+        
+        row.addSpacing(30)
+        
         row.addWidget(QLabel(f"窗{i+1}上限:"))
         max_spin = QSpinBox()
         max_spin.setRange(0, 120)
         max_spin.setValue(win[1])
         row.addWidget(max_spin)
+        row.addStretch()
+        
         binned_layout.addLayout(row)
         binned_spinboxes.append((min_spin, max_spin))
     acq_v_layout.addWidget(binned_group)
@@ -165,18 +181,16 @@ def create_channel_panel(title):
     mode_opt_row.addSpacing(25)
     radio_sync = QRadioButton("运动同步"); 
     radio_fixed = QRadioButton("固定时长"); 
-    # radio_sync.setEnabled(False) 
-    # radio_sync.setChecked(True)
-    fixed_duration_spin = QDoubleSpinBox()
-    fixed_duration_spin.setRange(0.1, 100.0); fixed_duration_spin.setSuffix(" s")
-    fixed_duration_spin.setValue(6.0); fixed_duration_spin.setFixedWidth(90); 
-    radio_fixed.setChecked(True)
+    fixed_time_spin = QDoubleSpinBox()
+    fixed_time_spin.setRange(0.1, 100.0); fixed_time_spin.setSuffix(" s")
+    fixed_time_spin.setValue(6.0); fixed_time_spin.setFixedWidth(90); 
+    radio_sync.setChecked(True)
     
     mode_group = QButtonGroup(main_panel)
     mode_group.addButton(radio_sync)
     mode_group.addButton(radio_fixed)
     mode_opt_row.addWidget(radio_sync); mode_opt_row.addSpacing(15)
-    mode_opt_row.addWidget(radio_fixed); mode_opt_row.addWidget(fixed_duration_spin); mode_opt_row.addStretch()
+    mode_opt_row.addWidget(radio_fixed); mode_opt_row.addWidget(fixed_time_spin); mode_opt_row.addStretch()
     acq_v_layout.addLayout(mode_opt_row)
 
     time_row = QHBoxLayout()
@@ -198,7 +212,7 @@ def create_channel_panel(title):
     recon_v_layout.addLayout(sid_row); recon_v_layout.addLayout(sdd_row)
     recon_group.setLayout(recon_v_layout)
 
-    layout.addWidget(tube_group); layout.addWidget(acq_group); layout.addWidget(recon_group); layout.addStretch()
+    layout.addWidget(tube_group); layout.addWidget(acq_group); layout.addWidget(recon_group)
     main_panel.setLayout(layout)
     
     return {
@@ -208,7 +222,8 @@ def create_channel_panel(title):
         "binned_spinboxes": binned_spinboxes,
         "radio_sync": radio_sync, 
         "radio_fixed": radio_fixed,
-        "fixed_duration": fixed_duration_spin, "frame_time": time_spin, 
+        "fixed_time": fixed_time_spin, 
+        "frame_time": time_spin, 
         "sid": sid_spin, "sdd": sdd_spin
     }
 
@@ -314,25 +329,13 @@ def create_execution_block_exam():
     preview_box = QFrame()
     preview_box.setStyleSheet("background-color: #f4f4f4; border: 1px dashed #bbb; border-radius: 4px;")
     preview_v = QVBoxLayout(preview_box)
-    cor_preview_label = QLabel("正位路径: -")
-    sag_preview_label = QLabel("侧位路径: -")
+    preview_label = QLabel("保存路径: -")
     # 使用等宽字体方便阅读路径
     preview_style = "color: #2c3e50; font-family: 'Consolas', monospace; font-size: 11px;"
-    cor_preview_label.setStyleSheet(preview_style)
-    sag_preview_label.setStyleSheet(preview_style)
-    preview_v.addWidget(cor_preview_label)
-    preview_v.addWidget(sag_preview_label)
+    preview_label.setStyleSheet(preview_style)
+    preview_label.setStyleSheet(preview_style)
+    preview_v.addWidget(preview_label)
     layout.addWidget(preview_box)
-
-    # # 发送球管参数按钮
-    # init_btn = QPushButton("设置采集范围&球管参数")
-    # init_btn.setFixedHeight(45)
-    # init_btn.setStyleSheet("""
-    #     QPushButton { background-color: #27ae60; color: white; font-weight: bold; font-size: 14px; border-radius: 5px; }
-    #     QPushButton:hover { background-color: #2ecc71; }
-    #     QPushButton:pressed { background-color: #1e8449; }
-    # """)
-    # layout.addWidget(init_btn)
 
     # 采集按钮
     start_btn = QPushButton("开始采集 (Start Acquisition)")
@@ -347,11 +350,9 @@ def create_execution_block_exam():
     group_box.setLayout(layout)
     return {
         "group_box": group_box,
-        # "init_btn": init_btn,
         "start_btn": start_btn,
         "browse_btn": browse_btn,
         "dir_edit": dir_edit,
         "prefix_edit": prefix_edit,
-        "cor_preview_label": cor_preview_label,
-        "sag_preview_label": sag_preview_label,
+        "preview_label": preview_label,
     }

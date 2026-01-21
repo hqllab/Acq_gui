@@ -177,7 +177,7 @@ class MotorDriver:
 # core/motor.py
 # 这里的 MotorDriver 类定义保持不变，省略不写...
 
-def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start_event=None):
+def control_motor(driver, posstart=0, posend=400, speed=100, time=0, start_event=None):
     """
     driver: 已经连接好的 MotorDriver 实例
     posstart: 起点位置
@@ -185,16 +185,13 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
     speed: 速度
     start_event: 线程同步事件
     """
-    
-    # 【注意】这里不再创建 MotorDriver，也不再 connect
-    
     # 参数设置
     start_pos = posstart * 100
     end_pos = posend * 100
     run_speed = speed * 100
     
     # 静止采集
-    if run_speed == 0 and pause_time != 0:
+    if run_speed == 0 and time != 0:
         print('静止采集模式')
         try:
             print("Tube ON")
@@ -205,8 +202,9 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
             if start_event is not None:
                 print(">>> Signal Triggered: Start Acquisition!")
                 start_event.set()
-            # 等待运动结束
-            time.sleep(pause_time+0.5)
+                
+            # 球管比采集时间多等0.5s
+            time.sleep(time+0.5)
             # 6. Tube OFF
             print("Tube OFF")
             driver.doctr(0x7F01, [0])
@@ -275,10 +273,10 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
         print(f"Moving to {end_pos}...")
         moveInSpeedMode(driver, run_speed, end_pos)
         # driver.doctr(0x0402, [1, run_speed, 2, end_pos], with_succ=True)
-        sleep_time = (end_pos-start_pos)/run_speed + 2
-        print(f"777777 pause_time: {sleep_time}")
+        moving_time = (end_pos-start_pos)/run_speed + 2
+        print(f"moving time: {moving_time}")
         # 等待运动结束
-        time.sleep(sleep_time)
+        time.sleep(moving_time)
 
         # 6. Tube OFF
         print("Tube OFF")
@@ -295,8 +293,6 @@ def control_motor(driver, posstart=0, posend=400, speed=100, pause_time=0, start
         # 【注意】这里发生了错误也不要 close，除非是网络断开（BrokenPipe），
         # 否则留给上层决定是否重连。
         raise e 
-        
-    # 【注意】这里删除了 finally: driver.close()，因为我们要持久化连接
 
 if __name__ == "__main__":
     control_motor()

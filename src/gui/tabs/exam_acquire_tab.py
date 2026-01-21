@@ -10,17 +10,16 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSettings
 
-from .acquire_tab_helper import create_motion_block, create_channel_panel, create_execution_block_exam
-# from .acq_worker import AcquisitionWorker
-# from core.slz_controller import SLZWorkerThread
+from .acquire_tab_helper import create_motion_block, create_tube_panel, create_execution_block_exam
 from gui.func import write_log
+from gui.tabs.connect_tab import ConnectTab
 import threading
 from core.motor import MotorDriver
 
 class ExamAcquireTab(QWidget):
     """采集参数设置与控制界面"""
 
-    def __init__(self, connect_tab_instance, log_box):
+    def __init__(self, connect_tab_instance: ConnectTab, log_box):
         super().__init__()
         self.detector = connect_tab_instance.exam_detector
         self.motor_driver = connect_tab_instance.exam_motor_driver
@@ -46,7 +45,7 @@ class ExamAcquireTab(QWidget):
 
         # 2. 正位与侧位通道
         channels_layout = QHBoxLayout()
-        self.detector_ui = create_channel_panel("探测器")
+        self.detector_ui = create_tube_panel("探测器")
         channels_layout.addWidget(self.detector_ui["panel"])
         main_layout.addLayout(channels_layout)
         
@@ -84,7 +83,6 @@ class ExamAcquireTab(QWidget):
         sid = int(self.detector_ui["sid"].value())
         sdd = int(self.detector_ui["sdd"].value())
         
-        
 
         def generate_path(suffix):
             # 逻辑：能谱 -> cali, 合并能窗 -> recon
@@ -93,9 +91,9 @@ class ExamAcquireTab(QWidget):
                         f"{frame_time}mspf_sid{sid}_sdd{sdd}_{mode_tag}_{suffix}.mat")
             return os.path.join(save_dir, filename)
 
-        self.cor_save_path = generate_path("")
+        self.save_path = generate_path("exam")
         
-        self.acq_ui["cor_preview_label"].setText(f"保存路径: {self.cor_save_path}")
+        self.acq_ui["preview_label"].setText(f"保存路径: {self.save_path}")
 
     def bind_events(self):
         """绑定 UI 事件"""
@@ -103,7 +101,7 @@ class ExamAcquireTab(QWidget):
         self.acq_ui["browse_btn"].clicked.connect(self.select_directory)
 
         # 2. 采集模式联动 (固定时长输入框开关)
-        self.detector_ui["radio_fixed"].toggled.connect(lambda checked: self.detector_ui["fixed_duration"].setEnabled(checked))
+        self.detector_ui["radio_fixed"].toggled.connect(lambda checked: self.detector_ui["fixed_time"].setEnabled(checked))
 
         # 3. 数据模式联动 (FrameTime 范围限制)
         self.detector_ui["radio_spectral"].toggled.connect(lambda: self._update_frametime_range(self.detector_ui))
@@ -113,8 +111,6 @@ class ExamAcquireTab(QWidget):
         self.acq_ui["dir_edit"].textChanged.connect(self.update_file_preview)
         self.acq_ui["prefix_edit"].textChanged.connect(self.update_file_preview)
         self.arm_ui["speed"].textChanged.connect(self.update_file_preview)
-        # self.prefix_edit.textChanged.connect(self.update_file_preview)
-        # self.speed.valueChanged.connect(self.update_file_preview)
         
         # 通道参数
         for ui in [self.detector_ui]:
@@ -134,20 +130,6 @@ class ExamAcquireTab(QWidget):
         
         # 6. 绑定采集
         self.acq_ui["start_btn"].clicked.connect(self.start_acq_pipeline)
-    
-    def connect_motor_driver(self):
-        """建立持久连接"""
-        target_ip = "10.20.22.56"
-        target_port = 19001
-        
-        if self.motor_driver is None:
-            try:
-                # 假设 MotorDriver 类已经 import 进来
-                self.motor_driver = MotorDriver(target_ip, target_port)
-                write_log(self.log_box, f"[Info] 电机已连接: {target_ip}")
-            except Exception as e:
-                write_log(self.log_box, f"[Error] 电机连接失败: {e}")
-                self.motor_driver = None
 
 
     def start_acq_pipeline(self):
@@ -161,7 +143,7 @@ class ExamAcquireTab(QWidget):
             write_log(self.log_box, "[Error] 未连接正位[COR]探测器，无法采集！")
             return
             
-        if os.path.exists(self.cor_save_path):
+        if os.path.exists(self.save_path):
             write_log(self.log_box, "[Error] 文件路径已存在！")
             return
         
@@ -179,17 +161,17 @@ class ExamAcquireTab(QWidget):
             move_time = (self.arm_ui["end_pos"].value()- self.arm_ui["start_pos"].value())/self.arm_ui["speed"].value() + 2
         except:
             move_time = 0.5
-            
+            print(f"Exception in cal move_time, set move_time: {move_time}!")
+
+        
+        ### 曝光时间 == 采集时间 == 运动时间
         acq_params = {
             "data_mode" : data_mode,
-            # "acq_mode" : acq_mode,
             "win_range" : cor_win_range,
-            "acq_time" : self.detector_ui["fixed_duration"].value() if acq_mode == "fixed" else move_time,
+            "time" : self.detector_ui["fixed_time"].value() if acq_mode == "fixed" else move_time,
             "interval" : self.detector_ui["frame_time"].value(),
-            "filepath" : self.cor_save_path,
+            "filepath" : self.save_path,
         }
-
-        print(acq_params)
 
          # 3. 创建同步信号 (红绿灯)
         trigger_event = threading.Event()
@@ -197,7 +179,7 @@ class ExamAcquireTab(QWidget):
         # =========================================================
         # 4. 定义 采集 线程任务 (等待者)
         # =========================================================
-        def run_cor_task():
+        def run_acq_task():
             write_log(self.log_box, "[Info] 采集线程就绪，等待电机启动信号...")
             
             # 阻塞在这里，直到电机线程调用 set()
@@ -224,9 +206,10 @@ class ExamAcquireTab(QWidget):
                 start_pos = self.arm_ui['start_pos'].value()
                 end_pos = self.arm_ui['end_pos'].value()
                 speed = self.arm_ui['speed'].value()
+                time = move_time
                 
                 # 【关键修改】将 self.motor_driver 传入函数
-                control_motor(self.motor_driver, start_pos, end_pos, speed, pause_time=self.detector_ui["fixed_duration"].value(), start_event=trigger_event)
+                control_motor(self.motor_driver, start_pos, end_pos, speed, time=time, start_event=trigger_event)
                 
                 write_log(self.log_box, "[Info] 电机流程结束")
             except Exception as e:
@@ -238,7 +221,7 @@ class ExamAcquireTab(QWidget):
         # 6. 启动双线程
         # =========================================================
         # 先启动采集线程让它去 wait
-        t_acq = threading.Thread(target=run_cor_task, daemon=True)
+        t_acq = threading.Thread(target=run_acq_task, daemon=True)
         t_acq.start()
         
         # 再启动电机线程

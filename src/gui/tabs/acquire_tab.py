@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSettings
 
-from .acquire_tab_helper import create_motion_block, create_channel_panel, create_execution_block
+from .acquire_tab_helper import create_motion_block, create_tube_panel, create_execution_block
 # from .acq_worker import AcquisitionWorker
 # from core.slz_controller import SLZWorkerThread
 from gui.func import write_log
@@ -42,8 +42,8 @@ class AcquireTab(QWidget):
 
         # 2. 正位与侧位通道
         channels_layout = QHBoxLayout()
-        self.cor_ui = create_channel_panel("正位 (COR)")
-        self.sag_ui = create_channel_panel("侧位 (SAG)")
+        self.cor_ui = create_tube_panel("正位 (COR)")
+        self.sag_ui = create_tube_panel("侧位 (SAG)")
         channels_layout.addWidget(self.cor_ui["panel"])
         channels_layout.addWidget(self.sag_ui["panel"])
         main_layout.addLayout(channels_layout)
