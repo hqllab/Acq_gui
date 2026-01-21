@@ -7,38 +7,19 @@ class MotorDriver:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.settimeout(0.1) # 设置非阻塞接收的超时时间
         self.buffer = bytearray() # 内部维护接收缓冲区
-        # try:
-        #     self.sock.connect((self.ip, self.port))
-        #     print(f"Connected to {self.ip}:{self.port}")
-        # except Exception as e:
-        #     print(f"Connection failed: {e}")
-        #     exit(1)
     
-    def connect(self, ip, port, status_label, callback=None):
+    def connect(self, ip, port, status_label, callback=None):   
         try:
             self.ip = ip
             self.port = port
             self.sock.connect((self.ip, self.port))
-            print(f"Connected to {self.ip}:{self.port}")
-
             
-            text = "已连接"
-            # 绿色方案: 浅绿背景 + 深绿文字
-            style = "background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 5px; border-radius: 3px; font-weight: bold;"
-
-            status_label.setText(text)
-            status_label.setStyleSheet(style)
+            if callable:
+                callback(True, status_label, f"成功连接到 {ip} 并初始化配置。")
 
         except Exception as e:
-            print(f"Connection failed: {e}")
-
-            text = "离线模式"
-            style = "background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 5px; border-radius: 3px; font-weight: bold;"
-            
-            status_label.setText(text)
-            status_label.setStyleSheet(style)
-            
-            raise e
+            if callback:
+                callback(False, status_label, f"连接失败：{e}")
 
     def close(self):
         self.sock.close()

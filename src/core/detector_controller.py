@@ -1,12 +1,10 @@
 '''
 Author: LiuSheng
 Date: 2025-11-06 16:12:14
-LastEditTime: 2026-01-12 18:51:53
+LastEditTime: 2026-01-21 12:06:46
 Description: 
 '''
-# core/detector_controller.py
-# from core.Det.Det import Det
-# from core.Det.DetData import DetData
+
 from core.det_interface import DetInterface
 from core.AcqFunc.AcqFunc import histAcqNoMove, thrAcqNoMove
 from core.AcqFunc.AcqFunc import saveHist, saveThr

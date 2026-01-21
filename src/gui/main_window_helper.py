@@ -1,3 +1,9 @@
+'''
+Author: LiuSheng
+Date: 2026-01-15 10:59:57
+LastEditTime: 2026-01-21 12:03:00
+Description: 
+'''
 from PySide6.QtWidgets import QTabWidget, QTextEdit, QGroupBox, QVBoxLayout
 from gui.tabs.connect_tab import ConnectTab
 from gui.tabs.acquire_tab import AcquireTab
@@ -21,7 +27,7 @@ def create_log_groupbox():
     """)
 
     log_layout = QVBoxLayout(log_group)
-    log_layout.setContentsMargins(10, 25, 10, 10)
+    log_layout.setContentsMargins(10, 20, 10, 10)
 
     log_box = QTextEdit()
     log_box.setReadOnly(True)
@@ -36,22 +42,18 @@ def create_tabs(log_box):
     tabs = QTabWidget()
 
     connect_tab = ConnectTab(log_box=log_box)
-    # acquire_tab = AcquireTab(
-    #     connect_tab_instance = connect_tab,
-    #     log_box=log_box
-    # )
-    acquire_tab2 = ExamAcquireTab(
+    exam_acq_tab = ExamAcquireTab(
         connect_tab_instance = connect_tab,
         log_box=log_box
     )
 
     tabs.addTab(connect_tab, "连接")
     # tabs.addTab(acquire_tab, "骨成像平台")
-    tabs.addTab(acquire_tab2, "实验平台")
+    tabs.addTab(exam_acq_tab, "实验平台")
     return {
         "tabs": tabs,
         "connect_tab": connect_tab,
         # "acquire_tab": acquire_tab,
-        "acquire_tab2": acquire_tab2
+        "exam_acq_tab": exam_acq_tab
     }
 
