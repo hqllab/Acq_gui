@@ -246,7 +246,7 @@ class ExamAcquireTab(QWidget):
     def show_image(self):
         """显示采集图像"""
         try:
-            from func import load_mat_from_file
+            from .. func import load_mat_from_file
             
             # 1. 加载数据 (如果文件很大，这一步可能会导致短暂的卡顿，建议用线程，但小文件无所谓)
             pos_array, pixels_array = load_mat_from_file(self.save_path)
@@ -305,6 +305,8 @@ class ExamAcquireTab(QWidget):
             "filepath" : self.save_path,
         }
 
+
+        print(f"acq_params: {acq_params}")
          # 3. 创建同步信号 (红绿灯)
         trigger_event = threading.Event()
 
@@ -341,7 +343,7 @@ class ExamAcquireTab(QWidget):
                 time = move_time
                 
                 # 【关键修改】将 self.motor_driver 传入函数
-                control_motor(self.motor_driver, start_pos, end_pos, speed, time=time, start_event=trigger_event)
+                control_motor(self.motor_driver, start_pos, end_pos, speed, acq_time=time, start_event=trigger_event)
                 
                 write_log(self.log_box, "[Info] 电机流程结束")
             except Exception as e:

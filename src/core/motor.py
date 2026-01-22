@@ -177,7 +177,7 @@ class MotorDriver:
 # core/motor.py
 # 这里的 MotorDriver 类定义保持不变，省略不写...
 
-def control_motor(driver, posstart=0, posend=400, speed=100, time=0, start_event=None):
+def control_motor(driver, posstart=0, posend=400, speed=100, acq_time=0, start_event=None):
     """
     driver: 已经连接好的 MotorDriver 实例
     posstart: 起点位置
@@ -191,7 +191,7 @@ def control_motor(driver, posstart=0, posend=400, speed=100, time=0, start_event
     run_speed = speed * 100
     
     # 静止采集
-    if run_speed == 0 and time != 0:
+    if run_speed == 0 and acq_time != 0:
         print('静止采集模式')
         try:
             print("Tube ON")
@@ -204,7 +204,7 @@ def control_motor(driver, posstart=0, posend=400, speed=100, time=0, start_event
                 start_event.set()
                 
             # 球管比采集时间多等0.5s
-            time.sleep(time+0.5)
+            time.sleep(acq_time+0.5)
             # 6. Tube OFF
             print("Tube OFF")
             driver.doctr(0x7F01, [0])
