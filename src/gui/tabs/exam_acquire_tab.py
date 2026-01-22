@@ -297,10 +297,11 @@ class ExamAcquireTab(QWidget):
 
         
         ### 曝光时间 == 采集时间 == 运动时间
+        print(acq_mode)
         acq_params = {
             "data_mode" : data_mode,
             "win_range" : cor_win_range,
-            "time" : self.detector_ui["fixed_time"].value() if acq_mode == "fixed" else move_time,
+            "acq_time" : self.detector_ui["fixed_time"].value() if acq_mode == "fixed" else move_time,
             "interval" : self.detector_ui["frame_time"].value(),
             "filepath" : self.save_path,
         }
@@ -340,7 +341,8 @@ class ExamAcquireTab(QWidget):
                 start_pos = self.arm_ui['start_pos'].value()
                 end_pos = self.arm_ui['end_pos'].value()
                 speed = self.arm_ui['speed'].value()
-                time = move_time
+                time = self.detector_ui["fixed_time"].value() if acq_mode == "fixed" else move_time
+
                 
                 # 【关键修改】将 self.motor_driver 传入函数
                 control_motor(self.motor_driver, start_pos, end_pos, speed, acq_time=time, start_event=trigger_event)

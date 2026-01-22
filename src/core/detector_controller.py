@@ -102,7 +102,7 @@ class DetectorController:
             if callback:
                 callback(False, f"激光器控制失败: {e}")
     
-    def start_acquire(self, data_mode, win_range, time, interval, filepath, callback=None):
+    def start_acquire(self, data_mode, win_range, acq_time, interval, filepath, callback=None):
         """启动数据采集"""
         if self.offline or not self.det:
             callback(False, "离线模式无法启动采集。")
@@ -111,14 +111,14 @@ class DetectorController:
             if data_mode == "spectral":
                 self.det.det.setWinRange(0, win_range[0], win_range[1])
                 interval = int(interval * 10)
-                data = histAcqNoMove(self.det.det, cnt=None, time=time, interval = interval)
+                data = histAcqNoMove(self.det.det, cnt=None, time=acq_time, interval = interval)
                 saveHist(data, filepath, None)
 
             elif data_mode == "binned":
                 for i,win in enumerate(win_range):
                     self.det.det.setWinRange(i, win[0], win[1])
                 interval = int(interval * 10)
-                data = thrAcqNoMove(self.det.det, cnt=None, time=time, interval = interval)
+                data = thrAcqNoMove(self.det.det, cnt=None, time=acq_time, interval = interval)
                 saveThr(data, filepath)
                 
             
