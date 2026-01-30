@@ -7,8 +7,7 @@ Description:
 
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout
 
-
-from .main_window_helper import create_log_groupbox, create_tabs
+from gui.main_window_helper import create_log_groupbox, create_tabs
 
 
 class MainWindow(QMainWindow):
@@ -29,7 +28,7 @@ class MainWindow(QMainWindow):
         tabs_ui = create_tabs(log_box)
         tabs = tabs_ui["tabs"]
         self.connect_tab = tabs_ui["connect_tab"]
-        self.exam_acq_tab = tabs_ui["exam_acq_tab"]
+        # self.exam_acq_tab = tabs_ui["exam_acq_tab"]
 
         # -----------------------------
         # 3. Central layout

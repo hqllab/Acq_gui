@@ -4,7 +4,7 @@ import sys
 from PySide6.QtCore import QThread, Signal
 
 # 引入你原来的类
-from core.arm.SLZCMD import SLZCtrCmd
+from core.arm.slzcmd import SLZCtrCmd
 
 class SLZWorkerThread(QThread):
     """

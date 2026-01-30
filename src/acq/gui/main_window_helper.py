@@ -5,9 +5,9 @@ LastEditTime: 2026-01-21 12:03:00
 Description: 
 '''
 from PySide6.QtWidgets import QTabWidget, QTextEdit, QGroupBox, QVBoxLayout
-from gui.tabs.connect_tab import ConnectTab
-from gui.tabs.acquire_tab import AcquireTab
-from gui.tabs.exam_acquire_tab import ExamAcquireTab
+from acq.gui.tabs.connect_tab import ConnectTab
+from acq.gui.tabs.acquire_tab import AcquireTab
+from acq.gui.tabs.exam_acquire_tab import ExamAcquireTab
 
 def create_log_groupbox():
     log_group = QGroupBox("输出日志(Log)")
@@ -49,11 +49,11 @@ def create_tabs(log_box):
 
     tabs.addTab(connect_tab, "连接")
     # tabs.addTab(acquire_tab, "骨成像平台")
-    tabs.addTab(exam_acq_tab, "实验平台")
+    # tabs.addTab(exam_acq_tab, "实验平台")
     return {
         "tabs": tabs,
         "connect_tab": connect_tab,
         # "acquire_tab": acquire_tab,
-        "exam_acq_tab": exam_acq_tab
+        # "exam_acq_tab": exam_acq_tab
     }
 
